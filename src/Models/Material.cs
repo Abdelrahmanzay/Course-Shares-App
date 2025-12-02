@@ -8,17 +8,28 @@ namespace CourseSharesApp.Models
     public class Material
     {
         [BsonId]
-        [BsonElement("_id")]
         public ObjectId Id { get; set; }
 
         [BsonElement("title")] public string Title { get; set; }
         [BsonElement("type")] public string Type { get; set; } // file/link
-        [BsonElement("upload_date")] public DateTime UploadDate { get; set; }
-        [BsonElement("status")] public string Status { get; set; } // Pending/Approved
-        [BsonElement("views_count")] public int ViewsCount { get; set; }
+        
+        // ADDED THIS: It was missing but exists in your script
+        [BsonElement("fileLink")] public string FileLink { get; set; }
 
-        [BsonElement("user_id")] public ObjectId UserId { get; set; }
-        [BsonElement("course_id")] public ObjectId CourseId { get; set; }
+        // FIXED: name matches phase2.js (uploadDate)
+        [BsonElement("uploadDate")] public DateTime UploadDate { get; set; }
+
+        // FIXED: name matches phase2.js (status)
+        [BsonElement("status")] public string Status { get; set; } 
+
+        // FIXED: name matches phase2.js (viewsCount)
+        [BsonElement("viewsCount")] public int ViewsCount { get; set; }
+
+        // FIXED: name matches phase2.js (uploadedBy)
+        [BsonElement("uploadedBy")] public ObjectId UserId { get; set; }
+
+        // FIXED: name matches phase2.js (courseId)
+        [BsonElement("courseId")] public ObjectId CourseId { get; set; }
 
         [BsonElement("comments")] public List<Comment> Comments { get; set; }
     }

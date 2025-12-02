@@ -6,16 +6,16 @@ using MongoDB.Driver;
 using CourseSharesApp.Data;
 using CourseSharesApp.Models;
 
-namespace CourseSharesApp.Forms
+namespace CourseSharesApp.Forms.Materials
 {
-    public partial class InsertForm : Form
+    public partial class InsertMaterialForm : Form
     {
         private readonly DatabaseContext _context;
 
-        public InsertForm()
+        public InsertMaterialForm(DatabaseContext context)
         {
             InitializeComponent();
-            _context = new DatabaseContext();
+            _context = context;
             LoadCourses();
         }
 
@@ -44,12 +44,11 @@ namespace CourseSharesApp.Forms
                 Status = "Pending",
                 ViewsCount = 0,
                 CourseId = (ObjectId)cmbCourse.SelectedValue,
-                // Assign a random user ID or first user for demo
-                UserId = _context.Users.Find(_ => true).First().Id 
+                UserId = _context.Users.Find(_ => true).First().Id
             };
 
             _context.Materials.InsertOne(material);
-            MessageBox.Show("Material Added!");
+            MessageBox.Show("Material inserted successfully.");
             this.Close();
         }
     }

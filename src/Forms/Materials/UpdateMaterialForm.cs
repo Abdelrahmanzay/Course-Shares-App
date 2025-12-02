@@ -5,24 +5,24 @@ using MongoDB.Driver;
 using CourseSharesApp.Data;
 using CourseSharesApp.Models;
 
-namespace CourseSharesApp.Forms
+namespace CourseSharesApp.Forms.Materials
 {
-    public partial class UpdateForm : Form
+    public partial class UpdateMaterialForm : Form
     {
         private readonly DatabaseContext _context;
         private Material _currentMaterial;
 
-        public UpdateForm()
+        public UpdateMaterialForm(DatabaseContext context)
         {
             InitializeComponent();
-            _context = new DatabaseContext();
+            _context = context;
         }
 
         private void btnSearch_Click(object sender, EventArgs e)
         {
             var title = txtSearchTitle.Text;
             _currentMaterial = _context.Materials.Find(m => m.Title == title).FirstOrDefault();
-            
+
             if (_currentMaterial != null)
             {
                 lblInfo.Text = $"Found: {_currentMaterial.Title} (Status: {_currentMaterial.Status})";
@@ -41,7 +41,7 @@ namespace CourseSharesApp.Forms
 
             var update = Builders<Material>.Update.Set(m => m.Status, "Approved");
             _context.Materials.UpdateOne(m => m.Id == _currentMaterial.Id, update);
-            
+
             MessageBox.Show("Material Approved!");
             this.Close();
         }

@@ -1,5 +1,3 @@
-using System;
-using MongoDB.Bson;
 using MongoDB.Driver;
 using CourseSharesApp.Models;
 
@@ -7,40 +5,18 @@ namespace CourseSharesApp.Data
 {
     public class DatabaseContext
     {
-        private readonly MongoClient _client;
-        private readonly IMongoDatabase _db;
+        private readonly IMongoDatabase _database;
 
-        public IMongoCollection<User> Users { get; }
-        public IMongoCollection<Material> Materials { get; }
-        public IMongoCollection<Course> Courses { get; }
-        public IMongoCollection<Section> Sections { get; }
-
-        public DatabaseContext(string connectionString, string databaseName = "CourseShares")
+        public DatabaseContext()
         {
-            var settings = MongoClientSettings.FromConnectionString(connectionString);
-            settings.ServerSelectionTimeout = TimeSpan.FromSeconds(5);
-            settings.ConnectTimeout = TimeSpan.FromSeconds(5);
-
-            _client = new MongoClient(settings);
-            _db = _client.GetDatabase(databaseName);
-
-            Users = _db.GetCollection<User>("users");
-            Materials = _db.GetCollection<Material>("materials");
-            Courses = _db.GetCollection<Course>("courses");
-            Sections = _db.GetCollection<Section>("sections");
+            var connectionString = "mongodb+srv://Agent:CyO41ftEO2jYc3Jf@agents.jfuv468.mongodb.net/";
+            var client = new MongoClient(connectionString);
+            _database = client.GetDatabase("CourseShares");
         }
 
-        public bool CanConnect()
-        {
-            try
-            {
-                _db.RunCommand<BsonDocument>(new BsonDocument("ping", 1));
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        public IMongoCollection<User> Users => _database.GetCollection<User>("users");
+        public IMongoCollection<Material> Materials => _database.GetCollection<Material>("materials");
+        public IMongoCollection<Course> Courses => _database.GetCollection<Course>("courses");
+        public IMongoCollection<Section> Sections => _database.GetCollection<Section>("sections");
     }
 }

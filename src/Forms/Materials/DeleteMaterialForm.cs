@@ -3,17 +3,18 @@ using System.Windows.Forms;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using CourseSharesApp.Data;
+using CourseSharesApp.Models;
 
-namespace CourseSharesApp.Forms
+namespace CourseSharesApp.Forms.Materials
 {
-    public partial class DeleteForm : Form
+    public partial class DeleteMaterialForm : Form
     {
         private readonly DatabaseContext _context;
 
-        public DeleteForm()
+        public DeleteMaterialForm(DatabaseContext context)
         {
             InitializeComponent();
-            _context = new DatabaseContext();
+            _context = context;
         }
 
         private void btnDelete_Click(object sender, EventArgs e)
@@ -25,6 +26,8 @@ namespace CourseSharesApp.Forms
                 MessageBox.Show("Deleted Successfully.");
             else
                 MessageBox.Show("No material found with that title.");
+
+            this.Close();
         }
     }
 }
