@@ -1,2 +1,38 @@
-/.vs
-/obj
+## --- C# / .NET Core ---
+# Build results (remove leading slash to match nested projects too)
+bin/
+obj/
+
+# Visual Studio User-Specific Files (Crucial to ignore)
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Cache
+.vs/
+
+# VS Code Settings (Optional: keeps your local config private)
+.vscode/
+
+## --- Node.js (MongoScript) ---
+# Dependencies
+node_modules/
+MongoScript/node_modules/
+
+# Logs
+npm-debug.log
+yarn-error.log
+
+## --- General / OS ---
+# Environment variables (Safety for your Mongo URI)
+.env
+
+# Mac/Windows system files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Logs
+logs/
+*.log
