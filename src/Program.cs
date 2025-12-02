@@ -14,7 +14,6 @@ namespace CourseSharesApp
             Application.SetCompatibleTextRenderingDefault(false);
 
             var ctx = new DatabaseContext("mongodb+srv://Agent:CyO41ftEO2jYc3Jf@agents.jfuv468.mongodb.net/");
-            Console.WriteLine("Connecting to MongoDB...");
             if (!ctx.CanConnect())
             {
                 MessageBox.Show("Cannot connect to MongoDB. Please check network and credentials.");
