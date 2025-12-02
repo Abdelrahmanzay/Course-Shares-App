@@ -54,7 +54,7 @@ const userSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ["student", "instructor", "admin"], // Enforce Phase 1 Roles
+    enum: ["student", "instructor", "admin"], 
     required: true 
   },
   dateJoined: { type: Date, default: Date.now },

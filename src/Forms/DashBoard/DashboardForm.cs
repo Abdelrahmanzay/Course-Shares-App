@@ -5,6 +5,8 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using CourseSharesApp.Data;
 using CourseSharesApp.Forms.Materials;
+using CourseSharesApp.Forms.Auth;
+using CourseSharesApp.Auth;
 
 namespace CourseSharesApp.Forms
 {
@@ -22,8 +24,14 @@ namespace CourseSharesApp.Forms
         {
             var pipeline = new BsonDocument[]
             {
+                // ADDED: Filter to show ONLY "Approved" materials first
+                new BsonDocument("$match", new BsonDocument("status", "Approved")),
+
+                // Then Sort by Views and Limit to Top 5
                 new BsonDocument("$sort", new BsonDocument("viewsCount", -1)),
                 new BsonDocument("$limit", 5),
+
+                // Join with Courses
                 new BsonDocument("$lookup", new BsonDocument
                 {
                     { "from", "courses" },
@@ -32,6 +40,8 @@ namespace CourseSharesApp.Forms
                     { "as", "courseInfo" }
                 }),
                 new BsonDocument("$unwind", "$courseInfo"),
+
+                // Select Fields to Display
                 new BsonDocument("$project", new BsonDocument
                 {
                     { "Title", "$title" },
@@ -88,12 +98,10 @@ namespace CourseSharesApp.Forms
                 var collection = _context.Materials.Database.GetCollection<BsonDocument>(collectionName);
                 var result = await collection.Aggregate<BsonDocument>(pipeline).ToListAsync();
 
-                // Convert BsonDocuments to a DataTable-like structure or list of dynamic objects for DataGridView
                 var displayList = result.Select(doc => doc.ToDictionary()).ToList();
 
                 if (displayList.Count > 0)
                 {
-                    // Create a DataTable manually to handle BsonValues gracefully
                     var dt = new System.Data.DataTable();
                     foreach (var key in displayList[0].Keys) dt.Columns.Add(key);
 
@@ -120,5 +128,14 @@ namespace CourseSharesApp.Forms
         private void btnOpenInsert_Click(object sender, EventArgs e) => new InsertMaterialForm(_context).ShowDialog();
         private void btnOpenUpdate_Click(object sender, EventArgs e) => new UpdateMaterialForm(_context).ShowDialog();
         private void btnOpenDelete_Click(object sender, EventArgs e) => new DeleteMaterialForm(_context).ShowDialog();
+
+        private void btnLogout_Click(object sender, EventArgs e)
+        {
+            UserSession.Logout();
+            var login = new LoginForm(_context);
+            login.FormClosed += (s, _) => this.Close();
+            this.Hide();
+            login.Show();
+        }
     }
 }

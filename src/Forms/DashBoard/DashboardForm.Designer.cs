@@ -11,6 +11,7 @@ namespace CourseSharesApp.Forms
         private System.Windows.Forms.Button btnOpenInsert;
         private System.Windows.Forms.Button btnOpenUpdate;
         private System.Windows.Forms.Button btnOpenDelete;
+        private System.Windows.Forms.Button btnLogout;
         private System.Windows.Forms.Panel panelMenu;
 
         protected override void Dispose(bool disposing)
@@ -38,13 +39,14 @@ namespace CourseSharesApp.Forms
             ((System.ComponentModel.ISupportInitialize)(this.dgvResults)).BeginInit();
             this.panelMenu.SuspendLayout();
             this.SuspendLayout();
-            
+
             // 
             // panelMenu (Left Sidebar Styling)
             // 
             this.panelMenu.Dock = System.Windows.Forms.DockStyle.Left;
             this.panelMenu.Width = 200;
             this.panelMenu.BackColor = menuColor; // Dark background for the menu
+            this.panelMenu.Controls.Add(this.btnLogout);
             this.panelMenu.Controls.Add(this.btnOpenDelete);
             this.panelMenu.Controls.Add(this.btnOpenUpdate);
             this.panelMenu.Controls.Add(this.btnOpenInsert);
@@ -53,7 +55,7 @@ namespace CourseSharesApp.Forms
             this.panelMenu.Controls.Add(this.btnPending);
             this.panelMenu.Controls.Add(this.btnTrending);
             this.panelMenu.Padding = new System.Windows.Forms.Padding(10, 20, 10, 10);
-            
+
             // 
             // Button Styles (Aggregation Reports)
             // 
@@ -69,16 +71,16 @@ namespace CourseSharesApp.Forms
                 btn.Height = 50;
                 btn.Margin = new System.Windows.Forms.Padding(0, 0, 0, 5); // Spacing between buttons
             }
-            
+
             this.btnTrending.Text = "📈 Trending Materials Report";
             this.btnTrending.Click += new System.EventHandler(this.btnTrending_Click);
-            
+
             this.btnPending.Text = "🔔 Pending Approval Queue";
             this.btnPending.Click += new System.EventHandler(this.btnPending_Click);
-            
+
             this.btnContributors.Text = "🏆 Top Contributors";
             this.btnContributors.Click += new System.EventHandler(this.btnContributors_Click);
-            
+
             this.btnSections.Text = "📚 Section Activity Overview";
             this.btnSections.Click += new System.EventHandler(this.btnSections_Click);
 
@@ -95,17 +97,30 @@ namespace CourseSharesApp.Forms
                 btn.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
                 btn.Dock = System.Windows.Forms.DockStyle.Bottom;
                 btn.Height = 40;
-                btn.Margin = new System.Windows.Forms.Padding(0, 5, 0, 0); 
+                btn.Margin = new System.Windows.Forms.Padding(0, 5, 0, 0);
             }
-            
+
             this.btnOpenInsert.Text = "➕ Upload New Material";
             this.btnOpenInsert.Click += new System.EventHandler(this.btnOpenInsert_Click);
-            
+
             this.btnOpenUpdate.Text = "✅ Approve / Update Status";
             this.btnOpenUpdate.Click += new System.EventHandler(this.btnOpenUpdate_Click);
-            
+
             this.btnOpenDelete.Text = "🗑️ Delete Material";
             this.btnOpenDelete.Click += new System.EventHandler(this.btnOpenDelete_Click);
+
+            // Logout button at very bottom
+            this.btnLogout = new System.Windows.Forms.Button();
+            this.btnLogout.BackColor = System.Drawing.Color.FromArgb(220, 80, 80);
+            this.btnLogout.ForeColor = System.Drawing.Color.White;
+            this.btnLogout.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnLogout.FlatAppearance.BorderSize = 0;
+            this.btnLogout.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            this.btnLogout.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.btnLogout.Height = 40;
+            this.btnLogout.Margin = new System.Windows.Forms.Padding(0, 5, 0, 0);
+            this.btnLogout.Text = "🚪 Logout";
+            this.btnLogout.Click += new System.EventHandler(this.btnLogout_Click);
 
             // 
             // dgvResults (Data Grid Styling)

@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Forms;
 using CourseSharesApp.Data;
-using CourseSharesApp.Forms;
+using CourseSharesApp.Forms.Auth;
 
 namespace CourseSharesApp
 {
@@ -13,8 +13,7 @@ namespace CourseSharesApp
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            var context = new DatabaseContext();
-            Application.Run(new DashboardForm(context));
+            Application.Run(new LoginForm());
         }
     }
 }

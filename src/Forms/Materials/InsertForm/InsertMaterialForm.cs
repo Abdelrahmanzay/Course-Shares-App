@@ -44,7 +44,7 @@ namespace CourseSharesApp.Forms.Materials
                 Status = "Pending",
                 ViewsCount = 0,
                 CourseId = (ObjectId)cmbCourse.SelectedValue,
-                UserId = _context.Users.Find(_ => true).First().Id
+                UserId = CourseSharesApp.Auth.UserSession.CurrentUserId
             };
 
             _context.Materials.InsertOne(material);
