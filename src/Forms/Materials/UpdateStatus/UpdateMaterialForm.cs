@@ -4,6 +4,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using CourseSharesApp.Data;
 using CourseSharesApp.Models;
+using CourseSharesApp.Auth;
 
 namespace CourseSharesApp.Forms.Materials
 {
@@ -20,6 +21,13 @@ namespace CourseSharesApp.Forms.Materials
 
         private void btnSearch_Click(object sender, EventArgs e)
         {
+            // Students don't have access to approve materials
+            if (UserSession.CurrentUserRole.ToLower() == "student")
+            {
+                MessageBox.Show("Students do not have permission to approve or update material status.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             var title = txtSearchTitle.Text;
             _currentMaterial = _context.Materials.Find(m => m.Title == title).FirstOrDefault();
 
@@ -38,6 +46,13 @@ namespace CourseSharesApp.Forms.Materials
         private void btnApprove_Click(object sender, EventArgs e)
         {
             if (_currentMaterial == null) return;
+
+            // Check if already approved
+            if (_currentMaterial.Status == "Approved")
+            {
+                MessageBox.Show("Material is already approved!");
+                return;
+            }
 
             var update = Builders<Material>.Update.Set(m => m.Status, "Approved");
             _context.Materials.UpdateOne(m => m.Id == _currentMaterial.Id, update);

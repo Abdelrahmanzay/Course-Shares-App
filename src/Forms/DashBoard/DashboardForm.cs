@@ -18,6 +18,14 @@ namespace CourseSharesApp.Forms
         {
             InitializeComponent();
             _context = context;
+            
+            // Hide Approve/Update and Delete buttons for students
+            if (UserSession.CurrentUserRole.ToLower() == "student")
+            {
+                btnOpenUpdate.Visible = false;
+                btnOpenDelete.Visible = false;
+                btnPending.Visible = false;
+            }
         }
 
         private async void btnTrending_Click(object sender, EventArgs e)
@@ -126,8 +134,26 @@ namespace CourseSharesApp.Forms
         }
 
         private void btnOpenInsert_Click(object sender, EventArgs e) => new InsertMaterialForm(_context).ShowDialog();
-        private void btnOpenUpdate_Click(object sender, EventArgs e) => new UpdateMaterialForm(_context).ShowDialog();
-        private void btnOpenDelete_Click(object sender, EventArgs e) => new DeleteMaterialForm(_context).ShowDialog();
+        
+        private void btnOpenUpdate_Click(object sender, EventArgs e)
+        {
+            if (UserSession.CurrentUserRole.ToLower() == "student")
+            {
+                MessageBox.Show("Students do not have permission to update materials.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            new UpdateMaterialForm(_context).ShowDialog();
+        }
+        
+        private void btnOpenDelete_Click(object sender, EventArgs e)
+        {
+            if (UserSession.CurrentUserRole.ToLower() == "student")
+            {
+                MessageBox.Show("Students can only delete their own materials through the material management interface.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            new DeleteMaterialForm(_context).ShowDialog();
+        }
 
         private void btnLogout_Click(object sender, EventArgs e)
         {
