@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace CourseSharesApp.Models
 {
+    [BsonIgnoreExtraElements]
     public class Section
     {
         [BsonId]

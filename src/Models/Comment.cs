@@ -4,6 +4,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace CourseSharesApp.Models
 {
+    [BsonIgnoreExtraElements]
     public class Comment
     {
         [BsonElement("text")] public string Text { get; set; }

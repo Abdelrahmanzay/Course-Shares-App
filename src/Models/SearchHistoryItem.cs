@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace CourseSharesApp.Models
 {
+    [BsonIgnoreExtraElements]
     public class SearchHistoryItem
     {
         [BsonElement("keyword")] public string Keyword { get; set; }

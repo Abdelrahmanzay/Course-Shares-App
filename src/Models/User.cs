@@ -5,6 +5,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace CourseSharesApp.Models
 {
+    [BsonIgnoreExtraElements]
     public class User
     {
         [BsonId]
@@ -12,12 +13,12 @@ namespace CourseSharesApp.Models
 
         [BsonElement("name")] public string Name { get; set; }
         [BsonElement("email")] public string Email { get; set; }
-        
+
         // FIXED: script uses passwordHash
         [BsonElement("passwordHash")] public string Password { get; set; }
-        
+
         [BsonElement("role")] public string Role { get; set; }
-        
+
         // FIXED: script uses dateJoined
         [BsonElement("dateJoined")] public DateTime DateJoined { get; set; }
 

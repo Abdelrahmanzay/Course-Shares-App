@@ -5,6 +5,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace CourseSharesApp.Models
 {
+    [BsonIgnoreExtraElements]
     public class Material
     {
         [BsonId]
@@ -12,7 +13,7 @@ namespace CourseSharesApp.Models
 
         [BsonElement("title")] public string Title { get; set; }
         [BsonElement("type")] public string Type { get; set; } // file/link
-        
+
         // ADDED THIS: It was missing but exists in your script
         [BsonElement("fileLink")] public string FileLink { get; set; }
 
@@ -20,7 +21,7 @@ namespace CourseSharesApp.Models
         [BsonElement("uploadDate")] public DateTime UploadDate { get; set; }
 
         // FIXED: name matches phase2.js (status)
-        [BsonElement("status")] public string Status { get; set; } 
+        [BsonElement("status")] public string Status { get; set; }
 
         // FIXED: name matches phase2.js (viewsCount)
         [BsonElement("viewsCount")] public int ViewsCount { get; set; }
