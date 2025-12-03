@@ -164,10 +164,43 @@ namespace CourseSharesApp.Forms
     // -------------------------
     // DataGrid
     // -------------------------
-    this.dgvResults.Location = new System.Drawing.Point(220, 50);
-    this.dgvResults.Size = new System.Drawing.Size(560, 382);
-    this.dgvResults.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-    this.dgvResults.RowHeadersVisible = false;
+   // -------------------------
+// DataGrid Styling (Modern UI)
+// -------------------------
+this.dgvResults.Location = new System.Drawing.Point(220, 50);
+this.dgvResults.Size = new System.Drawing.Size(560, 382);
+this.dgvResults.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+this.dgvResults.RowHeadersVisible = false;
+this.dgvResults.AllowUserToAddRows = false;
+this.dgvResults.AllowUserToResizeRows = false;
+this.dgvResults.BackgroundColor = System.Drawing.Color.White;
+this.dgvResults.BorderStyle = System.Windows.Forms.BorderStyle.None;
+this.dgvResults.CellBorderStyle = System.Windows.Forms.DataGridViewCellBorderStyle.SingleHorizontal;
+
+// HEADER STYLE
+this.dgvResults.EnableHeadersVisualStyles = false;
+this.dgvResults.ColumnHeadersDefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(41, 53, 65);
+this.dgvResults.ColumnHeadersDefaultCellStyle.ForeColor = System.Drawing.Color.White;
+this.dgvResults.ColumnHeadersDefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+this.dgvResults.ColumnHeadersHeight = 40;
+this.dgvResults.ColumnHeadersBorderStyle = System.Windows.Forms.DataGridViewHeaderBorderStyle.None;
+
+// ROW STYLE
+this.dgvResults.DefaultCellStyle.BackColor = System.Drawing.Color.White;
+this.dgvResults.DefaultCellStyle.ForeColor = System.Drawing.Color.Black;
+this.dgvResults.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 10F);
+this.dgvResults.DefaultCellStyle.SelectionBackColor = System.Drawing.Color.FromArgb(255, 193, 7); // gold
+this.dgvResults.DefaultCellStyle.SelectionForeColor = System.Drawing.Color.Black;
+this.dgvResults.RowTemplate.Height = 35;
+
+// ALTERNATING ROWS
+this.dgvResults.AlternatingRowsDefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(245, 245, 245);
+
+// GRID COLOR
+this.dgvResults.GridColor = System.Drawing.Color.LightGray;
+
+// Smooth scrolling
+this.dgvResults.ScrollBars = ScrollBars.Both;
 
     // -------------------------
     // Dashboard Form
