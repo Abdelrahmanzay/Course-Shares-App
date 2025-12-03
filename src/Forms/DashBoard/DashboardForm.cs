@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows.Forms;
 using MongoDB.Bson;
@@ -30,7 +31,8 @@ namespace CourseSharesApp.Forms
             // Load approved materials on start
             LoadApprovedMaterials();
 
-          
+            // Add handler for hyperlink clicks
+            dgvResults.CellContentClick += DgvResults_CellContentClick;
         }
 
         // ------------------- LOAD MATERIALS -------------------
@@ -54,6 +56,7 @@ namespace CourseSharesApp.Forms
                     { "Status", "$status" },
                     { "UploadDate", "$uploadDate" },
                     { "ViewsCount", "$viewsCount" },
+                    { "FileLink", "$fileLink" }, // Added hyperlink column
                     { "_id", 0 }
                 })
             };
@@ -79,10 +82,31 @@ namespace CourseSharesApp.Forms
                     foreach (var row in displayList)
                     {
                         var dr = dt.NewRow();
-                        foreach (var key in row.Keys) dr[key] = row[key].ToString();
+                        foreach (var key in row.Keys) dr[key] = row[key]?.ToString() ?? "";
                         dt.Rows.Add(dr);
                     }
+
                     dgvResults.DataSource = dt;
+
+                    // Convert FileLink column to hyperlink
+                    if (dt.Columns.Contains("FileLink"))
+                    {
+                        if (!(dgvResults.Columns["FileLink"] is DataGridViewLinkColumn))
+                        {
+                            dgvResults.Columns.Remove("FileLink");
+                            var linkColumn = new DataGridViewLinkColumn
+                            {
+                                Name = "FileLink",
+                                HeaderText = "File",
+                                DataPropertyName = "FileLink",
+                                TrackVisitedState = true,
+                                LinkColor = System.Drawing.Color.Blue,
+                                ActiveLinkColor = System.Drawing.Color.Red,
+                                VisitedLinkColor = System.Drawing.Color.Purple
+                            };
+                            dgvResults.Columns.Add(linkColumn);
+                        }
+                    }
                 }
                 else
                 {
@@ -96,12 +120,32 @@ namespace CourseSharesApp.Forms
             }
         }
 
-        // ------------------- BUTTON FUNCTIONALITIES -------------------
-
-        private void btnHome_Click(object sender, EventArgs e)
+        // ------------------- HANDLE HYPERLINK CLICK -------------------
+        private void DgvResults_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            LoadApprovedMaterials();
+            if (e.RowIndex >= 0 && dgvResults.Columns[e.ColumnIndex] is DataGridViewLinkColumn)
+            {
+                var link = dgvResults.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
+                if (!string.IsNullOrEmpty(link))
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = link,
+                            UseShellExecute = true
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Cannot open file: {ex.Message}");
+                    }
+                }
+            }
         }
+
+        // ------------------- BUTTON FUNCTIONALITIES -------------------
+        private void btnHome_Click(object sender, EventArgs e) => LoadApprovedMaterials();
 
         private async void btnSearch_Click(object sender, EventArgs e)
         {
@@ -135,6 +179,7 @@ namespace CourseSharesApp.Forms
                     { "Status", "$status" },
                     { "UploadDate", "$uploadDate" },
                     { "ViewsCount", "$viewsCount" },
+                    { "FileLink", "$fileLink" }, // Added here too
                     { "_id", 0 }
                 })
             };
@@ -163,6 +208,7 @@ namespace CourseSharesApp.Forms
                     { "Views", "$viewsCount" },
                     { "Course", "$courseInfo.title" },
                     { "Status", "$status" },
+                    { "FileLink", "$fileLink" }, // Optional if you want hyperlink here
                     { "_id", 0 }
                 })
             };
@@ -188,6 +234,7 @@ namespace CourseSharesApp.Forms
                     { "Material", "$title" },
                     { "UploadedAt", "$uploadDate" },
                     { "By", "$uploader.name" },
+                    { "FileLink", "$fileLink" }, // Optional for pending
                     { "_id", 0 }
                 })
             };
