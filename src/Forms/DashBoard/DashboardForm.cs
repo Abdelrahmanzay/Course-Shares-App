@@ -18,87 +18,50 @@ namespace CourseSharesApp.Forms
         {
             InitializeComponent();
             _context = context;
-            
-            // Hide Approve/Update and Delete buttons for students
+
+            // Hide buttons for students
             if (UserSession.CurrentUserRole.ToLower() == "student")
             {
                 btnOpenUpdate.Visible = false;
                 btnOpenDelete.Visible = false;
                 btnPending.Visible = false;
             }
+
+            // Load approved materials on start
+            LoadApprovedMaterials();
+
+          
         }
 
-        private async void btnTrending_Click(object sender, EventArgs e)
+        // ------------------- LOAD MATERIALS -------------------
+        private async void LoadApprovedMaterials()
         {
             var pipeline = new BsonDocument[]
             {
-                // ADDED: Filter to show ONLY "Approved" materials first
                 new BsonDocument("$match", new BsonDocument("status", "Approved")),
-
-                // Then Sort by Views and Limit to Top 5
-                new BsonDocument("$sort", new BsonDocument("viewsCount", -1)),
-                new BsonDocument("$limit", 5),
-
-                // Join with Courses
                 new BsonDocument("$lookup", new BsonDocument
                 {
-                    { "from", "courses" },
-                    { "localField", "courseId" },
+                    { "from", "users" },
+                    { "localField", "uploadedBy" },
                     { "foreignField", "_id" },
-                    { "as", "courseInfo" }
+                    { "as", "uploader" }
                 }),
-                new BsonDocument("$unwind", "$courseInfo"),
-
-                // Select Fields to Display
+                new BsonDocument("$unwind", "$uploader"),
                 new BsonDocument("$project", new BsonDocument
                 {
                     { "Title", "$title" },
-                    { "Views", "$viewsCount" },
-                    { "Course", "$courseInfo.title" },
+                    { "UploadedBy", "$uploader.name" },
                     { "Status", "$status" },
+                    { "UploadDate", "$uploadDate" },
+                    { "ViewsCount", "$viewsCount" },
                     { "_id", 0 }
                 })
             };
+
             await RunAggregation("materials", pipeline);
         }
 
-        private async void btnPending_Click(object sender, EventArgs e)
-        {
-            var pipeline = new BsonDocument[]
-            {
-                new BsonDocument("$match", new BsonDocument("status", "Pending")),
-                new BsonDocument("$lookup", new BsonDocument { { "from", "users" }, { "localField", "uploadedBy" }, { "foreignField", "_id" }, { "as", "uploader" } }),
-                new BsonDocument("$unwind", "$uploader"),
-                new BsonDocument("$project", new BsonDocument { { "Material", "$title" }, { "UploadedAt", "$uploadDate" }, { "By", "$uploader.name" }, { "_id", 0 } })
-            };
-            await RunAggregation("materials", pipeline);
-        }
-
-        private async void btnContributors_Click(object sender, EventArgs e)
-        {
-            var pipeline = new BsonDocument[]
-            {
-                new BsonDocument("$group", new BsonDocument { { "_id", "$uploadedBy" }, { "UploadCount", new BsonDocument("$sum", 1) } }),
-                new BsonDocument("$sort", new BsonDocument("UploadCount", -1)),
-                new BsonDocument("$lookup", new BsonDocument { { "from", "users" }, { "localField", "_id" }, { "foreignField", "_id" }, { "as", "user" } }),
-                new BsonDocument("$unwind", "$user"),
-                new BsonDocument("$project", new BsonDocument { { "Name", "$user.name" }, { "Uploads", "$UploadCount" }, { "_id", 0 } })
-            };
-            await RunAggregation("materials", pipeline);
-        }
-
-        private async void btnSections_Click(object sender, EventArgs e)
-        {
-            var pipeline = new BsonDocument[]
-            {
-                new BsonDocument("$group", new BsonDocument { { "_id", "$sectionId" }, { "CourseCount", new BsonDocument("$sum", 1) } }),
-                new BsonDocument("$lookup", new BsonDocument { { "from", "sections" }, { "localField", "_id" }, { "foreignField", "_id" }, { "as", "section" } }),
-                new BsonDocument("$unwind", "$section"),
-                new BsonDocument("$project", new BsonDocument { { "Section", "$section.sectionName" }, { "TotalCourses", "$CourseCount" }, { "_id", 0 } })
-            };
-            await RunAggregation("courses", pipeline);
-        }
-
+        // ------------------- AGGREGATION HELPER -------------------
         private async System.Threading.Tasks.Task RunAggregation(string collectionName, BsonDocument[] pipeline)
         {
             try
@@ -133,28 +96,191 @@ namespace CourseSharesApp.Forms
             }
         }
 
-        private void btnOpenInsert_Click(object sender, EventArgs e) => new InsertMaterialForm(_context).ShowDialog();
-        
+        // ------------------- BUTTON FUNCTIONALITIES -------------------
+
+        private void btnHome_Click(object sender, EventArgs e)
+        {
+            LoadApprovedMaterials();
+        }
+
+        private async void btnSearch_Click(object sender, EventArgs e)
+        {
+            string searchTerm = txtSearch.Text.Trim();
+
+            if (string.IsNullOrEmpty(searchTerm))
+            {
+                LoadApprovedMaterials();
+                return;
+            }
+
+            var pipeline = new BsonDocument[]
+            {
+                new BsonDocument("$match", new BsonDocument
+                {
+                    { "status", "Approved" },
+                    { "$text", new BsonDocument("$search", searchTerm) }
+                }),
+                new BsonDocument("$lookup", new BsonDocument
+                {
+                    { "from", "users" },
+                    { "localField", "uploadedBy" },
+                    { "foreignField", "_id" },
+                    { "as", "uploader" }
+                }),
+                new BsonDocument("$unwind", "$uploader"),
+                new BsonDocument("$project", new BsonDocument
+                {
+                    { "Title", "$title" },
+                    { "UploadedBy", "$uploader.name" },
+                    { "Status", "$status" },
+                    { "UploadDate", "$uploadDate" },
+                    { "ViewsCount", "$viewsCount" },
+                    { "_id", 0 }
+                })
+            };
+
+            await RunAggregation("materials", pipeline);
+        }
+
+        private async void btnTrending_Click(object sender, EventArgs e)
+        {
+            var pipeline = new BsonDocument[]
+            {
+                new BsonDocument("$match", new BsonDocument("status", "Approved")),
+                new BsonDocument("$sort", new BsonDocument("viewsCount", -1)),
+                new BsonDocument("$limit", 5),
+                new BsonDocument("$lookup", new BsonDocument
+                {
+                    { "from", "courses" },
+                    { "localField", "courseId" },
+                    { "foreignField", "_id" },
+                    { "as", "courseInfo" }
+                }),
+                new BsonDocument("$unwind", "$courseInfo"),
+                new BsonDocument("$project", new BsonDocument
+                {
+                    { "Title", "$title" },
+                    { "Views", "$viewsCount" },
+                    { "Course", "$courseInfo.title" },
+                    { "Status", "$status" },
+                    { "_id", 0 }
+                })
+            };
+
+            await RunAggregation("materials", pipeline);
+        }
+
+        private async void btnPending_Click(object sender, EventArgs e)
+        {
+            var pipeline = new BsonDocument[]
+            {
+                new BsonDocument("$match", new BsonDocument("status", "Pending")),
+                new BsonDocument("$lookup", new BsonDocument
+                {
+                    { "from", "users" },
+                    { "localField", "uploadedBy" },
+                    { "foreignField", "_id" },
+                    { "as", "uploader" }
+                }),
+                new BsonDocument("$unwind", "$uploader"),
+                new BsonDocument("$project", new BsonDocument
+                {
+                    { "Material", "$title" },
+                    { "UploadedAt", "$uploadDate" },
+                    { "By", "$uploader.name" },
+                    { "_id", 0 }
+                })
+            };
+
+            await RunAggregation("materials", pipeline);
+        }
+
+        private async void btnContributors_Click(object sender, EventArgs e)
+        {
+            var pipeline = new BsonDocument[]
+            {
+                new BsonDocument("$group", new BsonDocument
+                {
+                    { "_id", "$uploadedBy" },
+                    { "UploadCount", new BsonDocument("$sum", 1) }
+                }),
+                new BsonDocument("$sort", new BsonDocument("UploadCount", -1)),
+                new BsonDocument("$lookup", new BsonDocument
+                {
+                    { "from", "users" },
+                    { "localField", "_id" },
+                    { "foreignField", "_id" },
+                    { "as", "user" }
+                }),
+                new BsonDocument("$unwind", "$user"),
+                new BsonDocument("$project", new BsonDocument
+                {
+                    { "Name", "$user.name" },
+                    { "Uploads", "$UploadCount" },
+                    { "_id", 0 }
+                })
+            };
+
+            await RunAggregation("materials", pipeline);
+        }
+
+        private async void btnSections_Click(object sender, EventArgs e)
+        {
+            var pipeline = new BsonDocument[]
+            {
+                new BsonDocument("$group", new BsonDocument
+                {
+                    { "_id", "$sectionId" },
+                    { "CourseCount", new BsonDocument("$sum", 1) }
+                }),
+                new BsonDocument("$lookup", new BsonDocument
+                {
+                    { "from", "sections" },
+                    { "localField", "_id" },
+                    { "foreignField", "_id" },
+                    { "as", "section" }
+                }),
+                new BsonDocument("$unwind", "$section"),
+                new BsonDocument("$project", new BsonDocument
+                {
+                    { "Section", "$section.sectionName" },
+                    { "TotalCourses", "$CourseCount" },
+                    { "_id", 0 }
+                })
+            };
+
+            await RunAggregation("courses", pipeline);
+        }
+
+        // ------------------- INSERT / UPDATE / DELETE -------------------
+        private void btnOpenInsert_Click(object sender, EventArgs e)
+        {
+            new InsertMaterialForm(_context).ShowDialog();
+        }
+
         private void btnOpenUpdate_Click(object sender, EventArgs e)
         {
             if (UserSession.CurrentUserRole.ToLower() == "student")
             {
-                MessageBox.Show("Students do not have permission to update materials.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Students do not have permission to update materials.", "Access Denied");
                 return;
             }
+
             new UpdateMaterialForm(_context).ShowDialog();
         }
-        
+
         private void btnOpenDelete_Click(object sender, EventArgs e)
         {
             if (UserSession.CurrentUserRole.ToLower() == "student")
             {
-                MessageBox.Show("Students can only delete their own materials through the material management interface.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Students can only delete their own materials.", "Access Denied");
                 return;
             }
+
             new DeleteMaterialForm(_context).ShowDialog();
         }
 
+        // ------------------- LOGOUT -------------------
         private void btnLogout_Click(object sender, EventArgs e)
         {
             UserSession.Logout();
