@@ -146,46 +146,50 @@ namespace CourseSharesApp.Forms
 
         // ------------------- BUTTON FUNCTIONALITIES -------------------
         private void btnHome_Click(object sender, EventArgs e) => LoadApprovedMaterials();
+private async void btnSearch_Click(object sender, EventArgs e)
+{
+    string searchTerm = txtSearch.Text.Trim();
 
-        private async void btnSearch_Click(object sender, EventArgs e)
+    if (string.IsNullOrEmpty(searchTerm))
+    {
+        LoadApprovedMaterials();
+        return;
+    }
+
+    // CONTAINS search (matches anywhere in title)
+    var regex = new BsonRegularExpression(searchTerm, "i"); // "i" = ignore case
+
+    var pipeline = new BsonDocument[]
+    {
+        new BsonDocument("$match", new BsonDocument
         {
-            string searchTerm = txtSearch.Text.Trim();
+            { "status", "Approved" },
+            { "title", regex }   // <-- REGEX contains search
+        }),
+        new BsonDocument("$lookup", new BsonDocument
+        {
+            { "from", "users" },
+            { "localField", "uploadedBy" },
+            { "foreignField", "_id" },
+            { "as", "uploader" }
+        }),
+        new BsonDocument("$unwind", "$uploader"),
+        new BsonDocument("$project", new BsonDocument
+        {
+            { "Title", "$title" },
+            { "UploadedBy", "$uploader.name" },
+            { "Status", "$status" },
+            { "UploadDate", "$uploadDate" },
+            { "ViewsCount", "$viewsCount" },
+            { "FileLink", "$fileLink" },
+            { "_id", 0 }
+        })
+    };
 
-            if (string.IsNullOrEmpty(searchTerm))
-            {
-                LoadApprovedMaterials();
-                return;
-            }
+    await RunAggregation("materials", pipeline);
+}
 
-            var pipeline = new BsonDocument[]
-            {
-                new BsonDocument("$match", new BsonDocument
-                {
-                    { "status", "Approved" },
-                    { "$text", new BsonDocument("$search", searchTerm) }
-                }),
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "users" },
-                    { "localField", "uploadedBy" },
-                    { "foreignField", "_id" },
-                    { "as", "uploader" }
-                }),
-                new BsonDocument("$unwind", "$uploader"),
-                new BsonDocument("$project", new BsonDocument
-                {
-                    { "Title", "$title" },
-                    { "UploadedBy", "$uploader.name" },
-                    { "Status", "$status" },
-                    { "UploadDate", "$uploadDate" },
-                    { "ViewsCount", "$viewsCount" },
-                    { "FileLink", "$fileLink" }, // Added here too
-                    { "_id", 0 }
-                })
-            };
 
-            await RunAggregation("materials", pipeline);
-        }
 
         private async void btnTrending_Click(object sender, EventArgs e)
         {
