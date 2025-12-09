@@ -16,6 +16,9 @@ namespace CourseSharesApp.Forms
         private System.Windows.Forms.Button btnHome;
         private System.Windows.Forms.TextBox txtSearch;
         private System.Windows.Forms.Button btnSearch;
+        private System.Windows.Forms.Button btnViewUserUploads;
+        private System.Windows.Forms.ComboBox cmbUserList;
+
 
         protected override void Dispose(bool disposing)
         {
@@ -43,6 +46,8 @@ namespace CourseSharesApp.Forms
     this.btnHome = new System.Windows.Forms.Button();
     this.txtSearch = new System.Windows.Forms.TextBox();
     this.btnSearch = new System.Windows.Forms.Button();
+    this.btnViewUserUploads = new System.Windows.Forms.Button();
+    this.cmbUserList = new System.Windows.Forms.ComboBox();
 
     ((System.ComponentModel.ISupportInitialize)(this.dgvResults)).BeginInit();
     this.panelMenu.SuspendLayout();
@@ -98,6 +103,22 @@ namespace CourseSharesApp.Forms
     this.btnHome.Text = "🏠 Home";
     this.btnHome.Click += new System.EventHandler(this.btnHome_Click);
 
+
+    // -------------------------
+    // View User Uploads Button
+   // -------------------------
+    this.btnViewUserUploads.BackColor = buttonColor;
+    this.btnViewUserUploads.ForeColor = System.Drawing.Color.White;
+    this.btnViewUserUploads.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+    this.btnViewUserUploads.FlatAppearance.BorderSize = 0;
+    this.btnViewUserUploads.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+    this.btnViewUserUploads.Dock = System.Windows.Forms.DockStyle.Top;
+    this.btnViewUserUploads.Height = 50;
+    this.btnViewUserUploads.Text = "📂 User Uploads";
+    this.btnViewUserUploads.Click += new System.EventHandler(this.btnViewUserUploads_Click);
+
+
+
     // -------------------------
     // CRUD Buttons
     // -------------------------
@@ -124,6 +145,9 @@ namespace CourseSharesApp.Forms
     this.btnOpenUpdate.Click += new System.EventHandler(this.btnOpenUpdate_Click);
     this.btnOpenDelete.Click += new System.EventHandler(this.btnOpenDelete_Click);
 
+
+    
+
     // -------------------------
     // LOGOUT BUTTON
     // -------------------------
@@ -146,7 +170,10 @@ namespace CourseSharesApp.Forms
     this.panelMenu.Controls.Add(this.btnContributors);
     this.panelMenu.Controls.Add(this.btnPending);
     this.panelMenu.Controls.Add(this.btnTrending);
+    this.panelMenu.Controls.Add(this.btnViewUserUploads);
     this.panelMenu.Controls.Add(this.btnHome);
+    
+
 
     // -------------------------
     // Search box
@@ -202,11 +229,18 @@ this.dgvResults.GridColor = System.Drawing.Color.LightGray;
 // Smooth scrolling
 this.dgvResults.ScrollBars = ScrollBars.Both;
 
+this.cmbUserList.Location = new System.Drawing.Point(220, 440);
+this.cmbUserList.Size = new System.Drawing.Size(300, 28);
+this.cmbUserList.Font = new System.Drawing.Font("Segoe UI", 10F);
+this.cmbUserList.Visible = false;
+this.cmbUserList.SelectedIndexChanged += new System.EventHandler(this.cmbUserList_SelectedIndexChanged);
+
     // -------------------------
     // Dashboard Form
     // -------------------------
     this.ClientSize = new System.Drawing.Size(800, 450);
     this.Controls.Add(this.dgvResults);
+    this.Controls.Add(this.cmbUserList);
     this.Controls.Add(this.txtSearch);
     this.Controls.Add(this.btnSearch);
     this.Controls.Add(this.panelMenu);
