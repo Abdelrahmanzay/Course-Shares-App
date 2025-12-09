@@ -1,7 +1,9 @@
 using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using System.Collections.Generic;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using CourseSharesApp.Data;
@@ -26,6 +28,24 @@ namespace CourseSharesApp.Forms
                 btnOpenUpdate.Visible = false;
                 btnOpenDelete.Visible = false;
                 btnPending.Visible = false;
+            }
+
+            // Prepare user dropdown (hidden by default) and wire handler
+            try
+            {
+                cmbUserList.Visible = false;
+                cmbUserList.DisplayMember = "Name";
+                cmbUserList.ValueMember = "Id";
+                cmbUserList.SelectedIndexChanged -= cmbUserList_SelectedIndexChanged;
+                cmbUserList.SelectedIndexChanged += cmbUserList_SelectedIndexChanged;
+
+                // position the combobox under the search textbox if available
+                cmbUserList.Location = new Point(txtSearch.Location.X, txtSearch.Location.Y + txtSearch.Height + 6);
+                cmbUserList.Width = Math.Max(220, txtSearch.Width + 40);
+            }
+            catch
+            {
+                // ignore designer differences
             }
 
             // Load approved materials on start
@@ -69,6 +89,9 @@ namespace CourseSharesApp.Forms
         {
             try
             {
+                // Ensure user-list combobox is hidden for general views
+                try { cmbUserList.Visible = false; } catch { }
+
                 var collection = _context.Materials.Database.GetCollection<BsonDocument>(collectionName);
                 var result = await collection.Aggregate<BsonDocument>(pipeline).ToListAsync();
 
@@ -146,15 +169,15 @@ namespace CourseSharesApp.Forms
 
         // ------------------- BUTTON FUNCTIONALITIES -------------------
         private void btnHome_Click(object sender, EventArgs e) => LoadApprovedMaterials();
-private async void btnSearch_Click(object sender, EventArgs e)
-{
-    string searchTerm = txtSearch.Text.Trim();
+        private async void btnSearch_Click(object sender, EventArgs e)
+        {
+            string searchTerm = txtSearch.Text.Trim();
 
-    if (string.IsNullOrEmpty(searchTerm))
-    {
-        LoadApprovedMaterials();
-        return;
-    }
+            if (string.IsNullOrEmpty(searchTerm))
+            {
+                LoadApprovedMaterials();
+                return;
+            }
 
     // CONTAINS search (matches anywhere in title)
     var regex = new BsonRegularExpression(searchTerm, "i"); // "i" = ignore case
@@ -189,6 +212,254 @@ private async void btnSearch_Click(object sender, EventArgs e)
     await RunAggregation("materials", pipeline);
 }
 
+private async void btnViewUserUploads_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Collect user identifiers from materials robustly
+                List<string> userIdStrings = new List<string>();
+
+                try
+                {
+                    var projected = await _context.Materials
+                        .Find(_ => true)
+                        .Project(m => m.UserId)
+                        .ToListAsync();
+
+                    if (projected != null)
+                    {
+                        foreach (var x in projected)
+                        {
+                            if (x == null) continue;
+                            userIdStrings.Add(x.ToString());
+                        }
+                    }
+                }
+                catch
+                {
+                    // ignore - fallback to BSON distinct
+                }
+
+                if (userIdStrings.Count == 0)
+                {
+                    var materialsColl = _context.Materials.Database.GetCollection<BsonDocument>("materials");
+                    var distinctCursor = await materialsColl.DistinctAsync<BsonValue>("uploadedBy", FilterDefinition<BsonDocument>.Empty);
+                    var distinctValues = (await distinctCursor.ToListAsync()).Where(v => v != BsonNull.Value).ToList();
+
+                    foreach (var v in distinctValues)
+                    {
+                        if (v.IsObjectId) userIdStrings.Add(v.AsObjectId.ToString());
+                        else if (v.IsString) userIdStrings.Add(v.AsString);
+                    }
+                }
+
+                userIdStrings = userIdStrings.Distinct().ToList();
+
+                if (userIdStrings.Count == 0)
+                {
+                    MessageBox.Show("No users with uploads found.");
+                    return;
+                }
+
+                // Resolve names from users collection where possible
+                var usersColl = _context.Materials.Database.GetCollection<BsonDocument>("users");
+                var objectIds = userIdStrings.Where(id => ObjectId.TryParse(id, out _)).Select(id => ObjectId.Parse(id)).ToList();
+                var stringIds = userIdStrings.Except(objectIds.Select(o => o.ToString())).ToList();
+
+                var filters = new List<FilterDefinition<BsonDocument>>();
+                if (objectIds.Count > 0) filters.Add(Builders<BsonDocument>.Filter.In("_id", objectIds));
+                if (stringIds.Count > 0) filters.Add(Builders<BsonDocument>.Filter.In("_id", stringIds));
+
+                var finalFilter = filters.Count > 0 ? Builders<BsonDocument>.Filter.Or(filters) : Builders<BsonDocument>.Filter.Empty;
+                var users = await usersColl.Find(finalFilter).Project(Builders<BsonDocument>.Projection.Include("_id").Include("name")).ToListAsync();
+
+                var list = userIdStrings.Select(id =>
+                {
+                    var matched = users.FirstOrDefault(u =>
+                        (u.Contains("_id") && u["_id"].BsonType == BsonType.ObjectId && ObjectId.TryParse(id, out var oid) && u["_id"].AsObjectId == oid)
+                        || (u.Contains("_id") && u["_id"].BsonType == BsonType.String && u["_id"].AsString == id)
+                    );
+
+                    return new UserItem
+                    {
+                        Id = id,
+                        Name = matched != null && matched.Contains("name") ? matched["name"].AsString : id
+                    };
+                }).OrderBy(u => u.Name).ToList();
+
+                cmbUserList.DataSource = list;
+                cmbUserList.DisplayMember = "Name";
+                cmbUserList.ValueMember = "Id";
+
+                // Position under the search box and show dropdown
+                try
+                {
+                    cmbUserList.Location = new Point(txtSearch.Location.X, txtSearch.Location.Y + txtSearch.Height + 6);
+                    cmbUserList.Width = Math.Max(220, txtSearch.Width + 40);
+                }
+                catch { }
+
+                cmbUserList.BringToFront();
+                cmbUserList.Focus();
+                cmbUserList.Visible = true;
+                cmbUserList.DroppedDown = true;
+
+                // Ensure the data grid is moved down so the combobox dropdown is not overlapped
+                try
+                {
+                    int desiredTop = cmbUserList.Location.Y + cmbUserList.Height + 6;
+                    int oldTop = dgvResults.Top;
+                    if (oldTop < desiredTop)
+                    {
+                        int delta = desiredTop - oldTop;
+                        dgvResults.Top = desiredTop;
+                        // reduce height so bottom stays roughly same, but keep a minimum height
+                        dgvResults.Height = Math.Max(120, dgvResults.Height - delta);
+                    }
+                }
+                catch { }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error loading users: " + ex.Message);
+            }
+        }
+
+        // -----------------------------
+        // NEW: Load materials of selected user
+        // -----------------------------
+        private async void cmbUserList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                if (cmbUserList.SelectedItem == null) return;
+                if (!(cmbUserList.SelectedItem is UserItem selected)) return;
+
+                var materialsColl = _context.Materials.Database.GetCollection<BsonDocument>("materials");
+
+                var filters = new List<FilterDefinition<BsonDocument>>();
+
+                // uploadedBy stored as ObjectId
+                if (ObjectId.TryParse(selected.Id, out var parsedOid))
+                {
+                    filters.Add(Builders<BsonDocument>.Filter.Eq("uploadedBy", parsedOid));
+                }
+
+                // possible stored user id string fields
+                filters.Add(Builders<BsonDocument>.Filter.Eq("userId", selected.Id));
+                filters.Add(Builders<BsonDocument>.Filter.Eq("UserId", selected.Id));
+
+                var combined = Builders<BsonDocument>.Filter.Or(filters);
+
+                var docs = await materialsColl.Find(combined).ToListAsync();
+
+                if (docs == null || docs.Count == 0)
+                {
+                    dgvResults.DataSource = null;
+                    MessageBox.Show("This user has no uploaded materials.");
+                    return;
+                }
+
+                // Build a minimal DataTable with only Title, UploadedBy (name) and FileLink
+                var dt = new System.Data.DataTable();
+                dt.Columns.Add("Title");
+                dt.Columns.Add("UploadedBy");
+                dt.Columns.Add("FileLink");
+
+                // Fetch uploader name from users collection if not embedded in material doc
+                var usersColl = _context.Materials.Database.GetCollection<BsonDocument>("users");
+
+                foreach (var d in docs)
+                {
+                    var title = d.Contains("title") ? d["title"].ToString() : "";
+                    string uploaderName = string.Empty;
+
+                    if (d.Contains("uploadedBy") && d["uploadedBy"].BsonType == BsonType.ObjectId)
+                    {
+                        var oid = d["uploadedBy"].AsObjectId;
+                        var u = await usersColl.Find(Builders<BsonDocument>.Filter.Eq("_id", oid)).Project(Builders<BsonDocument>.Projection.Include("name")).FirstOrDefaultAsync();
+                        if (u != null && u.Contains("name")) uploaderName = u["name"].AsString;
+                    }
+                    else if (d.Contains("uploader") && d["uploader"].IsBsonDocument && d["uploader"].AsBsonDocument.Contains("name"))
+                    {
+                        uploaderName = d["uploader"].AsBsonDocument["name"].AsString;
+                    }
+
+                    var fileLink = d.Contains("fileLink") ? d["fileLink"].ToString() : "";
+
+                    var dr = dt.NewRow();
+                    dr["Title"] = title;
+                    dr["UploadedBy"] = uploaderName;
+                    dr["FileLink"] = fileLink;
+                    dt.Rows.Add(dr);
+                }
+
+                dgvResults.DataSource = dt;
+
+                // Replace FileLink with a link column
+                if (dt.Columns.Contains("FileLink"))
+                {
+                    // remove existing display column if present
+                    if (dgvResults.Columns.Contains("FileLink")) dgvResults.Columns.Remove("FileLink");
+
+                    var linkColumn = new DataGridViewLinkColumn
+                    {
+                        Name = "FileLink",
+                        HeaderText = "File",
+                        DataPropertyName = "FileLink",
+                        TrackVisitedState = true,
+                        LinkColor = System.Drawing.Color.Blue,
+                        ActiveLinkColor = System.Drawing.Color.Red,
+                        VisitedLinkColor = System.Drawing.Color.Purple
+                    };
+                    dgvResults.Columns.Add(linkColumn);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error loading materials: " + ex.Message);
+            }
+        }
+
+        // Helper: convert list of BsonDocument to DataTable
+        private System.Data.DataTable BsonDocumentsToDataTable(System.Collections.Generic.List<BsonDocument> docs)
+        {
+            var dt = new System.Data.DataTable();
+
+            if (docs == null || docs.Count == 0) return dt;
+
+            var allKeys = new HashSet<string>();
+            foreach (var d in docs) foreach (var k in d.Names) allKeys.Add(k);
+
+            foreach (var key in allKeys) dt.Columns.Add(key);
+
+            foreach (var d in docs)
+            {
+                var row = dt.NewRow();
+                foreach (var key in allKeys)
+                {
+                    if (d.Contains(key))
+                    {
+                        var val = d[key];
+                        if (val.IsObjectId) row[key] = val.AsObjectId.ToString();
+                        else if (val.IsBsonDateTime) row[key] = val.ToUniversalTime().ToString("u");
+                        else row[key] = val.ToString();
+                    }
+                    else row[key] = "";
+                }
+                dt.Rows.Add(row);
+            }
+
+            return dt;
+        }
+
+        // Simple DTO for combobox binding
+        private class UserItem
+        {
+            public string Id { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
+            public override string ToString() => Name;
+        }
 
 
         private async void btnTrending_Click(object sender, EventArgs e)
@@ -330,6 +601,8 @@ private async void btnSearch_Click(object sender, EventArgs e)
 
             new DeleteMaterialForm(_context).ShowDialog();
         }
+   
+        // ------------------- VIEW USER UPLOADS -------------------
 
         // ------------------- LOGOUT -------------------
         private void btnLogout_Click(object sender, EventArgs e)
