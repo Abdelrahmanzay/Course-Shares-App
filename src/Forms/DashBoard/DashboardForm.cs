@@ -77,7 +77,7 @@ namespace CourseSharesApp.Forms
                     { "UploadDate", "$uploadDate" },
                     { "ViewsCount", "$viewsCount" },
                     { "FileLink", "$fileLink" }, // Added hyperlink column
-                    { "_id", 0 }
+                    { "_id", "$_id" }
                 })
             };
 
@@ -129,6 +129,11 @@ namespace CourseSharesApp.Forms
                             };
                             dgvResults.Columns.Add(linkColumn);
                         }
+                        // hide the _id column if present
+                        if (dgvResults.Columns.Contains("_id"))
+                        {
+                            dgvResults.Columns["_id"].Visible = false;
+                        }
                     }
                 }
                 else
@@ -144,25 +149,89 @@ namespace CourseSharesApp.Forms
         }
 
         // ------------------- HANDLE HYPERLINK CLICK -------------------
-        private void DgvResults_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        private async void DgvResults_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0 && dgvResults.Columns[e.ColumnIndex] is DataGridViewLinkColumn)
             {
                 var link = dgvResults.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
-                if (!string.IsNullOrEmpty(link))
+                if (string.IsNullOrEmpty(link)) return;
+
+                // Attempt to increment viewsCount for the material if we have its _id in the row
+                try
                 {
-                    try
+                    string idStr = null;
+                    if (dgvResults.Columns.Contains("_id"))
+                        idStr = dgvResults.Rows[e.RowIndex].Cells["_id"].Value?.ToString();
+
+                    var materialsColl = _context.Materials.Database.GetCollection<BsonDocument>("materials");
+
+                    if (!string.IsNullOrEmpty(idStr))
                     {
-                        Process.Start(new ProcessStartInfo
+                        UpdateResult upd = null;
+
+                        if (ObjectId.TryParse(idStr, out var matOid))
                         {
-                            FileName = link,
-                            UseShellExecute = true
-                        });
+                            var filter = Builders<BsonDocument>.Filter.Eq("_id", matOid);
+                            var update = Builders<BsonDocument>.Update.Inc("viewsCount", 1);
+                            upd = await materialsColl.UpdateOneAsync(filter, update);
+                        }
+                        else
+                        {
+                            // fallback: try matching on string _id or fileLink
+                            var filter = Builders<BsonDocument>.Filter.Eq("_id", idStr);
+                            var update = Builders<BsonDocument>.Update.Inc("viewsCount", 1);
+                            upd = await materialsColl.UpdateOneAsync(filter, update);
+
+                            if (upd?.ModifiedCount == 0)
+                            {
+                                // try matching by fileLink
+                                var linkFilter = Builders<BsonDocument>.Filter.Eq("fileLink", link);
+                                upd = await materialsColl.UpdateOneAsync(linkFilter, Builders<BsonDocument>.Update.Inc("viewsCount", 1));
+                            }
+                        }
+
+                        if (upd != null && upd.ModifiedCount > 0)
+                        {
+                            // update grid cell if ViewsCount or Views present
+                            try
+                            {
+                                if (dgvResults.Columns.Contains("ViewsCount"))
+                                {
+                                    var cell = dgvResults.Rows[e.RowIndex].Cells["ViewsCount"];
+                                    if (int.TryParse(cell.Value?.ToString(), out var cur)) cell.Value = (cur + 1).ToString();
+                                }
+                                else if (dgvResults.Columns.Contains("Views"))
+                                {
+                                    var cell = dgvResults.Rows[e.RowIndex].Cells["Views"];
+                                    if (int.TryParse(cell.Value?.ToString(), out var cur)) cell.Value = (cur + 1).ToString();
+                                }
+                            }
+                            catch { }
+                        }
+                        else
+                        {
+                            // Non blocking diagnostic - developer can remove later
+                            Debug.WriteLine("viewsCount not incremented (no matching document).");
+                        }
                     }
-                    catch (Exception ex)
+                }
+                catch (Exception ex)
+                {
+                    // swallow but log to help debugging
+                    Debug.WriteLine($"viewsCount update failed: {ex.Message}");
+                }
+
+                try
+                {
+                    Process.Start(new ProcessStartInfo
                     {
-                        MessageBox.Show($"Cannot open file: {ex.Message}");
-                    }
+                        FileName = link,
+                        UseShellExecute = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Cannot open file: {ex.Message}");
                 }
             }
         }
@@ -205,7 +274,7 @@ namespace CourseSharesApp.Forms
             { "UploadDate", "$uploadDate" },
             { "ViewsCount", "$viewsCount" },
             { "FileLink", "$fileLink" },
-            { "_id", 0 }
+                    { "_id", "$_id" }
         })
     };
 
@@ -360,11 +429,12 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
                     return;
                 }
 
-                // Build a minimal DataTable with only Title, UploadedBy (name) and FileLink
+                // Build a minimal DataTable with only Title, UploadedBy (name), FileLink and hidden _id
                 var dt = new System.Data.DataTable();
                 dt.Columns.Add("Title");
                 dt.Columns.Add("UploadedBy");
                 dt.Columns.Add("FileLink");
+                dt.Columns.Add("_id"); // hidden id used to increment views
 
                 // Fetch uploader name from users collection if not embedded in material doc
                 var usersColl = _context.Materials.Database.GetCollection<BsonDocument>("users");
@@ -386,11 +456,13 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
                     }
 
                     var fileLink = d.Contains("fileLink") ? d["fileLink"].ToString() : "";
+                    var idVal = d.Contains("_id") ? (d["_id"].IsObjectId ? d["_id"].AsObjectId.ToString() : d["_id"].ToString()) : string.Empty;
 
                     var dr = dt.NewRow();
                     dr["Title"] = title;
                     dr["UploadedBy"] = uploaderName;
                     dr["FileLink"] = fileLink;
+                    dr["_id"] = idVal;
                     dt.Rows.Add(dr);
                 }
 
@@ -413,6 +485,8 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
                         VisitedLinkColor = System.Drawing.Color.Purple
                     };
                     dgvResults.Columns.Add(linkColumn);
+                    // hide the _id column if present
+                    if (dgvResults.Columns.Contains("_id")) dgvResults.Columns["_id"].Visible = false;
                 }
             }
             catch (Exception ex)
@@ -484,7 +558,7 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
                     { "Course", "$courseInfo.title" },
                     { "Status", "$status" },
                     { "FileLink", "$fileLink" }, // Optional if you want hyperlink here
-                    { "_id", 0 }
+                    { "_id", "$_id" }
                 })
             };
 
@@ -509,8 +583,8 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
                     { "Material", "$title" },
                     { "UploadedAt", "$uploadDate" },
                     { "By", "$uploader.name" },
-                    { "FileLink", "$fileLink" }, // Optional for pending
-                    { "_id", 0 }
+                        { "FileLink", "$fileLink" }, // Optional for pending
+                        { "_id", "$_id" }
                 })
             };
 
