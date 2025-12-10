@@ -10,6 +10,7 @@ using CourseSharesApp.Data;
 using CourseSharesApp.Forms.Materials;
 using CourseSharesApp.Forms.Auth;
 using CourseSharesApp.Auth;
+using CourseSharesApp.Forms.Sections;
 
 namespace CourseSharesApp.Forms
 {
@@ -21,6 +22,23 @@ namespace CourseSharesApp.Forms
         {
             InitializeComponent();
             _context = context;
+
+
+            if (UserSession.CurrentUserRole.ToLower() == "student")
+        {
+            btnOpenUpdate.Visible = false;
+            btnOpenDelete.Visible = false;
+            btnPending.Visible = false;
+            
+            // NEW: Hide Add Section button for students
+            try { btnOpenAddSection.Visible = false; } catch { /* Ignore if button wasn't defined */ }
+        }
+        
+        // NEW: Check if the user is NOT an admin, and hide the button if they aren't.
+        if (UserSession.CurrentUserRole.ToLower() != "admin")
+        {
+            try { btnOpenAddSection.Visible = false; } catch { /* Ignore if button wasn't defined */ }
+        }
 
             // Hide buttons for students
             if (UserSession.CurrentUserRole.ToLower() == "student")
@@ -238,6 +256,7 @@ namespace CourseSharesApp.Forms
 
         // ------------------- BUTTON FUNCTIONALITIES -------------------
         private void btnHome_Click(object sender, EventArgs e) => LoadApprovedMaterials();
+        
         private async void btnSearch_Click(object sender, EventArgs e)
         {
             string searchTerm = txtSearch.Text.Trim();
@@ -687,5 +706,21 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
             this.Hide();
             login.Show();
         }
+        private void btnOpenAddSection_Click(object sender, EventArgs e)
+{
+    // The security check: Only allow Admin role to proceed [cite: 57]
+    if (UserSession.CurrentUserRole != "admin")
+    {
+        MessageBox.Show("Access Denied. Only administrators can add sections.", "Security Restriction");
+        return;
+    }
+    var addSectionForm = new AddSectionForm(_context); 
+    addSectionForm.ShowDialog();
+    
+    // Optional: Refresh the Sections view after adding a new section
+    btnSections_Click(this, EventArgs.Empty);
+
+    
+}
     }
 }

@@ -18,5 +18,14 @@ namespace CourseSharesApp.Data
         public IMongoCollection<Material> Materials => _database.GetCollection<Material>("materials");
         public IMongoCollection<Course> Courses => _database.GetCollection<Course>("courses");
         public IMongoCollection<Section> Sections => _database.GetCollection<Section>("sections");
+        
+    public async Task AddSectionAsync(Section newSection)
+    {
+       
+        var collection = _database.GetCollection<Section>("sections");
+
+        
+        await collection.InsertOneAsync(newSection);
+    }
     }
 }
