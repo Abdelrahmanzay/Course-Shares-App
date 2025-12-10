@@ -18,5 +18,6 @@ namespace CourseSharesApp.Data
         public IMongoCollection<Material> Materials => _database.GetCollection<Material>("materials");
         public IMongoCollection<Course> Courses => _database.GetCollection<Course>("courses");
         public IMongoCollection<Section> Sections => _database.GetCollection<Section>("sections");
+        public IMongoCollection<SearchHistoryItem> SearchHistory => _database.GetCollection<SearchHistoryItem>("searchHistory");
     }
 }

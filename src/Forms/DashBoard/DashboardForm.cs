@@ -10,6 +10,7 @@ using CourseSharesApp.Data;
 using CourseSharesApp.Forms.Materials;
 using CourseSharesApp.Forms.Auth;
 using CourseSharesApp.Auth;
+using CourseSharesApp.Models;
 
 namespace CourseSharesApp.Forms
 {
@@ -248,38 +249,60 @@ namespace CourseSharesApp.Forms
                 return;
             }
 
-    // CONTAINS search (matches anywhere in title)
-    var regex = new BsonRegularExpression(searchTerm, "i"); // "i" = ignore case
+            // Save search to history in user's searchHistory array
+            try
+            {
+                var userId = UserSession.CurrentUserId;
+                var filter = Builders<User>.Filter.Eq("_id", userId);
+                
+                var searchHistoryDoc = new BsonDocument
+                {
+                    { "keyword", searchTerm },
+                    { "timestamp", DateTime.Now }
+                };
+                
+                var update = Builders<User>.Update.Push("searchHistory", searchHistoryDoc);
+                _context.Users.UpdateOne(filter, update);
+                Debug.WriteLine($"Search saved to user history: {searchTerm} at {DateTime.Now}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to save search history: {ex.Message}");
+                MessageBox.Show($"Error saving search history: {ex.Message}");
+            }
 
-    var pipeline = new BsonDocument[]
-    {
-        new BsonDocument("$match", new BsonDocument
-        {
-            { "status", "Approved" },
-            { "title", regex }   // <-- REGEX contains search
-        }),
-        new BsonDocument("$lookup", new BsonDocument
-        {
-            { "from", "users" },
-            { "localField", "uploadedBy" },
-            { "foreignField", "_id" },
-            { "as", "uploader" }
-        }),
-        new BsonDocument("$unwind", "$uploader"),
-        new BsonDocument("$project", new BsonDocument
-        {
-            { "Title", "$title" },
-            { "UploadedBy", "$uploader.name" },
-            { "Status", "$status" },
-            { "UploadDate", "$uploadDate" },
-            { "ViewsCount", "$viewsCount" },
-            { "FileLink", "$fileLink" },
+            // CONTAINS search (matches anywhere in title)
+            var regex = new BsonRegularExpression(searchTerm, "i"); // "i" = ignore case
+
+            var pipeline = new BsonDocument[]
+            {
+                new BsonDocument("$match", new BsonDocument
+                {
+                    { "status", "Approved" },
+                    { "title", regex }   // <-- REGEX contains search
+                }),
+                new BsonDocument("$lookup", new BsonDocument
+                {
+                    { "from", "users" },
+                    { "localField", "uploadedBy" },
+                    { "foreignField", "_id" },
+                    { "as", "uploader" }
+                }),
+                new BsonDocument("$unwind", "$uploader"),
+                new BsonDocument("$project", new BsonDocument
+                {
+                    { "Title", "$title" },
+                    { "UploadedBy", "$uploader.name" },
+                    { "Status", "$status" },
+                    { "UploadDate", "$uploadDate" },
+                    { "ViewsCount", "$viewsCount" },
+                    { "FileLink", "$fileLink" },
                     { "_id", "$_id" }
-        })
-    };
+                })
+            };
 
-    await RunAggregation("materials", pipeline);
-}
+            await RunAggregation("materials", pipeline);
+        }
 
 private async void btnViewUserUploads_Click(object sender, EventArgs e)
         {
