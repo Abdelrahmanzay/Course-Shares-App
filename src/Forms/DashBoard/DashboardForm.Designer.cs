@@ -200,6 +200,7 @@ this.dgvResults.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeC
 this.dgvResults.RowHeadersVisible = false;
 this.dgvResults.AllowUserToAddRows = false;
 this.dgvResults.AllowUserToResizeRows = false;
+this.dgvResults.ReadOnly = true;
 this.dgvResults.BackgroundColor = System.Drawing.Color.White;
 this.dgvResults.BorderStyle = System.Windows.Forms.BorderStyle.None;
 this.dgvResults.CellBorderStyle = System.Windows.Forms.DataGridViewCellBorderStyle.SingleHorizontal;
