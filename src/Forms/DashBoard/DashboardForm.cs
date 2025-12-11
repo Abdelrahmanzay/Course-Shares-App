@@ -552,7 +552,14 @@ namespace CourseSharesApp.Forms
         // ------------------- INSERT / UPDATE / DELETE -------------------
         private void btnOpenInsert_Click(object sender, EventArgs e)
         {
-            new InsertMaterialForm(_context).ShowDialog();
+            using (var form = new InsertMaterialForm(_context))
+            {
+                var result = form.ShowDialog();
+                if (result == DialogResult.OK)
+                {
+                    LoadApprovedMaterials();
+                }
+            }
         }
 
         private void btnOpenUpdate_Click(object sender, EventArgs e)
@@ -563,7 +570,14 @@ namespace CourseSharesApp.Forms
                 return;
             }
 
-            new UpdateMaterialForm(_context).ShowDialog();
+            using (var form = new UpdateMaterialForm(_context))
+            {
+                var result = form.ShowDialog();
+                if (result == DialogResult.OK)
+                {
+                    LoadApprovedMaterials();
+                }
+            }
         }
 
         private void btnOpenDelete_Click(object sender, EventArgs e)
@@ -574,7 +588,14 @@ namespace CourseSharesApp.Forms
                 return;
             }
 
-            new DeleteMaterialForm(_context).ShowDialog();
+            using (var form = new DeleteMaterialForm(_context))
+            {
+                var result = form.ShowDialog();
+                if (result == DialogResult.OK)
+                {
+                    LoadApprovedMaterials();
+                }
+            }
         }
 
         // ------------------- VIEW USER UPLOADS -------------------
@@ -596,13 +617,15 @@ namespace CourseSharesApp.Forms
                 MessageBox.Show("Access Denied. Only administrators can add sections.", "Security Restriction");
                 return;
             }
-            var addSectionForm = new AddSectionForm(_context);
-            addSectionForm.ShowDialog();
-
-            // Optional: Refresh the Sections view after adding a new section
-            btnSections_Click(this, EventArgs.Empty);
-
-
+            using (var addSectionForm = new AddSectionForm(_context))
+            {
+                var result = addSectionForm.ShowDialog();
+                // Refresh the Sections view after adding a new section
+                if (result == DialogResult.OK)
+                {
+                    btnSections_Click(this, EventArgs.Empty);
+                }
+            }
         }
     }
 }

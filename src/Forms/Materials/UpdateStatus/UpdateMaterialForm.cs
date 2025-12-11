@@ -67,7 +67,7 @@ namespace CourseSharesApp.Forms.Materials
                 MessageBox.Show("This material is already approved.",
                                 "Already Approved", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                btnApprove.Enabled = false;  
+                btnApprove.Enabled = false;
                 return;
             }
 
@@ -78,6 +78,7 @@ namespace CourseSharesApp.Forms.Materials
             MessageBox.Show("Material Approved Successfully!");
 
             btnApprove.Enabled = false; // Prevent approving again
+            this.DialogResult = DialogResult.OK;
             this.Close();
         }
     }

@@ -1,10 +1,11 @@
 using System;
 using System.Windows.Forms;
+using MongoDB.Driver;
 using CourseSharesApp.Data;
 using CourseSharesApp.Models;
 
 // IMPORTANT: Ensure the namespace matches your project structure
-namespace CourseSharesApp.Forms.Sections 
+namespace CourseSharesApp.Forms.Sections
 {
     public partial class AddSectionForm : Form
     {
@@ -13,7 +14,7 @@ namespace CourseSharesApp.Forms.Sections
         public AddSectionForm(DatabaseContext dbContext)
         {
             // InitializeComponent is called here by the framework
-            InitializeComponent(); 
+            InitializeComponent();
             _context = dbContext;
         }
 
@@ -29,19 +30,36 @@ namespace CourseSharesApp.Forms.Sections
                 return;
             }
 
-            // 2. Create Model instance
+            // 2. Check for duplicate section name
+            try
+            {
+                var existingSection = _context.Sections.Find(s => s.SectionName == title).FirstOrDefault();
+                if (existingSection != null)
+                {
+                    MessageBox.Show($"A section named '{title}' already exists. Please use a different name.", "Duplicate Section", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error checking for duplicate section: {ex.Message}", "Database Error");
+                return;
+            }
+
+            // 3. Create Model instance
             var newSection = new Section
             {
                 SectionName = title,
                 Description = description
             };
 
-            // 3. Call the Data Layer method
+            // 4. Call the Data Layer method
             try
             {
                 await _context.AddSectionAsync(newSection); // Corresponds to Action 7: Add Section [cite: 59]
                 MessageBox.Show($"Section '{title}' added successfully!", "Success");
-                this.Close(); 
+                this.DialogResult = DialogResult.OK;
+                this.Close();
             }
             catch (Exception ex)
             {

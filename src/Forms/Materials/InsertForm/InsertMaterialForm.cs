@@ -35,6 +35,16 @@ namespace CourseSharesApp.Forms.Materials
                 return;
             }
 
+            // Validate link if link type is selected
+            if (rbLink.Checked)
+            {
+                if (!Uri.IsWellFormedUriString(txtLink.Text.Trim(), UriKind.Absolute))
+                {
+                    MessageBox.Show("Please enter a valid absolute URI (e.g., https://example.com/file.pdf).", "Invalid Link", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+
             var material = new Material
             {
                 Title = txtTitle.Text,
@@ -49,6 +59,7 @@ namespace CourseSharesApp.Forms.Materials
 
             _context.Materials.InsertOne(material);
             MessageBox.Show("Material inserted successfully.");
+            this.DialogResult = DialogResult.OK;
             this.Close();
         }
     }

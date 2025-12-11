@@ -21,16 +21,16 @@ namespace CourseSharesApp.Forms.Materials
         private void btnDelete_Click(object sender, EventArgs e)
         {
             var title = txtTitle.Text;
-            
+
             // Find the material first
             var material = _context.Materials.Find(m => m.Title == title).FirstOrDefault();
-            
+
             if (material == null)
             {
                 MessageBox.Show("No material found with that title.");
                 return;
             }
-            
+
             // If user is a student, check if they own this material
             if (UserSession.CurrentUserRole.ToLower() == "student")
             {
@@ -40,16 +40,20 @@ namespace CourseSharesApp.Forms.Materials
                     return;
                 }
             }
-            
+
             // Proceed with deletion
             var result = _context.Materials.DeleteOne(m => m.Title == title);
 
             if (result.DeletedCount > 0)
+            {
                 MessageBox.Show("Deleted Successfully.");
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            }
             else
+            {
                 MessageBox.Show("Failed to delete material.");
-
-            this.Close();
+            }
         }
     }
 }
