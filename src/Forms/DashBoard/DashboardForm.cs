@@ -12,34 +12,37 @@ using CourseSharesApp.Forms.Auth;
 using CourseSharesApp.Auth;
 using CourseSharesApp.Models;
 using CourseSharesApp.Forms.Sections;
+using CourseSharesApp.Services;
 
 namespace CourseSharesApp.Forms
 {
     public partial class DashboardForm : Form
     {
         private readonly DatabaseContext _context;
+        private readonly ReportService _reportService;
 
         public DashboardForm(DatabaseContext context)
         {
             InitializeComponent();
             _context = context;
+            _reportService = new ReportService(_context);
 
 
             if (UserSession.CurrentUserRole.ToLower() == "student")
-        {
-            btnOpenUpdate.Visible = false;
-            btnOpenDelete.Visible = false;
-            btnPending.Visible = false;
-            
-            // NEW: Hide Add Section button for students
-            try { btnOpenAddSection.Visible = false; } catch { /* Ignore if button wasn't defined */ }
-        }
-        
-        // NEW: Check if the user is NOT an admin, and hide the button if they aren't.
-        if (UserSession.CurrentUserRole.ToLower() != "admin")
-        {
-            try { btnOpenAddSection.Visible = false; } catch { /* Ignore if button wasn't defined */ }
-        }
+            {
+                btnOpenUpdate.Visible = false;
+                btnOpenDelete.Visible = false;
+                btnPending.Visible = false;
+
+                // NEW: Hide Add Section button for students
+                try { btnOpenAddSection.Visible = false; } catch { /* Ignore if button wasn't defined */ }
+            }
+
+            // NEW: Check if the user is NOT an admin, and hide the button if they aren't.
+            if (UserSession.CurrentUserRole.ToLower() != "admin")
+            {
+                try { btnOpenAddSection.Visible = false; } catch { /* Ignore if button wasn't defined */ }
+            }
 
             // Hide buttons for students
             if (UserSession.CurrentUserRole.ToLower() == "student")
@@ -77,93 +80,66 @@ namespace CourseSharesApp.Forms
         // ------------------- LOAD MATERIALS -------------------
         private async void LoadApprovedMaterials()
         {
-            var pipeline = new BsonDocument[]
+            try
             {
-                new BsonDocument("$match", new BsonDocument("status", "Approved")),
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "users" },
-                    { "localField", "uploadedBy" },
-                    { "foreignField", "_id" },
-                    { "as", "uploader" }
-                }),
-                new BsonDocument("$unwind", "$uploader"),
-                new BsonDocument("$project", new BsonDocument
-                {
-                    { "Title", "$title" },
-                    { "UploadedBy", "$uploader.name" },
-                    { "Status", "$status" },
-                    { "UploadDate", "$uploadDate" },
-                    { "ViewsCount", "$viewsCount" },
-                    { "FileLink", "$fileLink" }, // Added hyperlink column
-                    { "_id", "$_id" }
-                })
-            };
-
-            await RunAggregation("materials", pipeline);
+                var docs = await _reportService.GetApprovedMaterialsAsync();
+                BindAggregationResult(docs);
+            }
+            catch (System.Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}");
+            }
         }
 
         // ------------------- AGGREGATION HELPER -------------------
-        private async System.Threading.Tasks.Task RunAggregation(string collectionName, BsonDocument[] pipeline)
+        private void BindAggregationResult(System.Collections.Generic.List<BsonDocument> result)
         {
-            try
+            // Ensure user-list combobox is hidden for general views
+            try { cmbUserList.Visible = false; } catch { }
+
+            var displayList = result.Select(doc => doc.ToDictionary()).ToList();
+
+            if (displayList.Count > 0)
             {
-                // Ensure user-list combobox is hidden for general views
-                try { cmbUserList.Visible = false; } catch { }
+                var dt = new System.Data.DataTable();
+                foreach (var key in displayList[0].Keys) dt.Columns.Add(key);
 
-                var collection = _context.Materials.Database.GetCollection<BsonDocument>(collectionName);
-                var result = await collection.Aggregate<BsonDocument>(pipeline).ToListAsync();
-
-                var displayList = result.Select(doc => doc.ToDictionary()).ToList();
-
-                if (displayList.Count > 0)
+                foreach (var row in displayList)
                 {
-                    var dt = new System.Data.DataTable();
-                    foreach (var key in displayList[0].Keys) dt.Columns.Add(key);
-
-                    foreach (var row in displayList)
-                    {
-                        var dr = dt.NewRow();
-                        foreach (var key in row.Keys) dr[key] = row[key]?.ToString() ?? "";
-                        dt.Rows.Add(dr);
-                    }
-
-                    dgvResults.DataSource = dt;
-
-                    // Convert FileLink column to hyperlink
-                    if (dt.Columns.Contains("FileLink"))
-                    {
-                        if (!(dgvResults.Columns["FileLink"] is DataGridViewLinkColumn))
-                        {
-                            dgvResults.Columns.Remove("FileLink");
-                            var linkColumn = new DataGridViewLinkColumn
-                            {
-                                Name = "FileLink",
-                                HeaderText = "File",
-                                DataPropertyName = "FileLink",
-                                TrackVisitedState = true,
-                                LinkColor = System.Drawing.Color.Blue,
-                                ActiveLinkColor = System.Drawing.Color.Red,
-                                VisitedLinkColor = System.Drawing.Color.Purple
-                            };
-                            dgvResults.Columns.Add(linkColumn);
-                        }
-                        // hide the _id column if present
-                        if (dgvResults.Columns.Contains("_id"))
-                        {
-                            dgvResults.Columns["_id"].Visible = false;
-                        }
-                    }
+                    var dr = dt.NewRow();
+                    foreach (var key in row.Keys) dr[key] = row[key]?.ToString() ?? "";
+                    dt.Rows.Add(dr);
                 }
-                else
+
+                dgvResults.DataSource = dt;
+
+                if (dt.Columns.Contains("FileLink"))
                 {
-                    dgvResults.DataSource = null;
-                    MessageBox.Show("No results found.");
+                    if (!(dgvResults.Columns["FileLink"] is DataGridViewLinkColumn))
+                    {
+                        dgvResults.Columns.Remove("FileLink");
+                        var linkColumn = new DataGridViewLinkColumn
+                        {
+                            Name = "FileLink",
+                            HeaderText = "File",
+                            DataPropertyName = "FileLink",
+                            TrackVisitedState = true,
+                            LinkColor = System.Drawing.Color.Blue,
+                            ActiveLinkColor = System.Drawing.Color.Red,
+                            VisitedLinkColor = System.Drawing.Color.Purple
+                        };
+                        dgvResults.Columns.Add(linkColumn);
+                    }
+                    if (dgvResults.Columns.Contains("_id"))
+                    {
+                        dgvResults.Columns["_id"].Visible = false;
+                    }
                 }
             }
-            catch (Exception ex)
+            else
             {
-                MessageBox.Show($"Error: {ex.Message}");
+                dgvResults.DataSource = null;
+                MessageBox.Show("No results found.");
             }
         }
 
@@ -257,7 +233,7 @@ namespace CourseSharesApp.Forms
 
         // ------------------- BUTTON FUNCTIONALITIES -------------------
         private void btnHome_Click(object sender, EventArgs e) => LoadApprovedMaterials();
-        
+
         private async void btnSearch_Click(object sender, EventArgs e)
         {
             string searchTerm = txtSearch.Text.Trim();
@@ -273,13 +249,13 @@ namespace CourseSharesApp.Forms
             {
                 var userId = UserSession.CurrentUserId;
                 var filter = Builders<User>.Filter.Eq("_id", userId);
-                
+
                 var searchHistoryDoc = new BsonDocument
                 {
                     { "keyword", searchTerm },
                     { "timestamp", DateTime.Now }
                 };
-                
+
                 var update = Builders<User>.Update.Push("searchHistory", searchHistoryDoc);
                 _context.Users.UpdateOne(filter, update);
                 Debug.WriteLine($"Search saved to user history: {searchTerm} at {DateTime.Now}");
@@ -293,37 +269,11 @@ namespace CourseSharesApp.Forms
             // CONTAINS search (matches anywhere in title)
             var regex = new BsonRegularExpression(searchTerm, "i"); // "i" = ignore case
 
-            var pipeline = new BsonDocument[]
-            {
-                new BsonDocument("$match", new BsonDocument
-                {
-                    { "status", "Approved" },
-                    { "title", regex }   // <-- REGEX contains search
-                }),
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "users" },
-                    { "localField", "uploadedBy" },
-                    { "foreignField", "_id" },
-                    { "as", "uploader" }
-                }),
-                new BsonDocument("$unwind", "$uploader"),
-                new BsonDocument("$project", new BsonDocument
-                {
-                    { "Title", "$title" },
-                    { "UploadedBy", "$uploader.name" },
-                    { "Status", "$status" },
-                    { "UploadDate", "$uploadDate" },
-                    { "ViewsCount", "$viewsCount" },
-                    { "FileLink", "$fileLink" },
-                    { "_id", "$_id" }
-                })
-            };
-
-            await RunAggregation("materials", pipeline);
+            var docs = await _reportService.SearchApprovedMaterialsAsync(regex);
+            BindAggregationResult(docs);
         }
 
-private async void btnViewUserUploads_Click(object sender, EventArgs e)
+        private async void btnViewUserUploads_Click(object sender, EventArgs e)
         {
             try
             {
@@ -499,7 +449,6 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
 
                     var fileLink = d.Contains("fileLink") ? d["fileLink"].ToString() : "";
                     var idVal = d.Contains("_id") ? (d["_id"].IsObjectId ? d["_id"].AsObjectId.ToString() : d["_id"].ToString()) : string.Empty;
-
                     var dr = dt.NewRow();
                     dr["Title"] = title;
                     dr["UploadedBy"] = uploaderName;
@@ -507,9 +456,7 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
                     dr["_id"] = idVal;
                     dt.Rows.Add(dr);
                 }
-
                 dgvResults.DataSource = dt;
-
                 // Replace FileLink with a link column
                 if (dt.Columns.Contains("FileLink"))
                 {
@@ -580,114 +527,26 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
 
         private async void btnTrending_Click(object sender, EventArgs e)
         {
-            var pipeline = new BsonDocument[]
-            {
-                new BsonDocument("$match", new BsonDocument("status", "Approved")),
-                new BsonDocument("$sort", new BsonDocument("viewsCount", -1)),
-                new BsonDocument("$limit", 5),
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "courses" },
-                    { "localField", "courseId" },
-                    { "foreignField", "_id" },
-                    { "as", "courseInfo" }
-                }),
-                new BsonDocument("$unwind", "$courseInfo"),
-                new BsonDocument("$project", new BsonDocument
-                {
-                    { "Title", "$title" },
-                    { "Views", "$viewsCount" },
-                    { "Course", "$courseInfo.title" },
-                    { "Status", "$status" },
-                    { "FileLink", "$fileLink" }, // Optional if you want hyperlink here
-                    { "_id", "$_id" }
-                })
-            };
-
-            await RunAggregation("materials", pipeline);
+            var docs = await _reportService.GetTrendingAsync();
+            BindAggregationResult(docs);
         }
 
         private async void btnPending_Click(object sender, EventArgs e)
         {
-            var pipeline = new BsonDocument[]
-            {
-                new BsonDocument("$match", new BsonDocument("status", "Pending")),
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "users" },
-                    { "localField", "uploadedBy" },
-                    { "foreignField", "_id" },
-                    { "as", "uploader" }
-                }),
-                new BsonDocument("$unwind", "$uploader"),
-                new BsonDocument("$project", new BsonDocument
-                {
-                    { "Material", "$title" },
-                    { "UploadedAt", "$uploadDate" },
-                    { "By", "$uploader.name" },
-                        { "FileLink", "$fileLink" }, // Optional for pending
-                        { "_id", "$_id" }
-                })
-            };
-
-            await RunAggregation("materials", pipeline);
+            var docs = await _reportService.GetPendingAsync();
+            BindAggregationResult(docs);
         }
 
         private async void btnContributors_Click(object sender, EventArgs e)
         {
-            var pipeline = new BsonDocument[]
-            {
-                new BsonDocument("$group", new BsonDocument
-                {
-                    { "_id", "$uploadedBy" },
-                    { "UploadCount", new BsonDocument("$sum", 1) }
-                }),
-                new BsonDocument("$sort", new BsonDocument("UploadCount", -1)),
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "users" },
-                    { "localField", "_id" },
-                    { "foreignField", "_id" },
-                    { "as", "user" }
-                }),
-                new BsonDocument("$unwind", "$user"),
-                new BsonDocument("$project", new BsonDocument
-                {
-                    { "Name", "$user.name" },
-                    { "Uploads", "$UploadCount" },
-                    { "_id", 0 }
-                })
-            };
-
-            await RunAggregation("materials", pipeline);
+            var docs = await _reportService.GetContributorsAsync();
+            BindAggregationResult(docs);
         }
 
         private async void btnSections_Click(object sender, EventArgs e)
         {
-            var pipeline = new BsonDocument[]
-            {
-                new BsonDocument("$group", new BsonDocument
-                {
-                    { "_id", "$sectionId" },
-                    { "CourseCount", new BsonDocument("$sum", 1) }
-                }),
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "sections" },
-                    { "localField", "_id" },
-                    { "foreignField", "_id" },
-                    { "as", "section" }
-                }),
-                new BsonDocument("$unwind", "$section"),
-                new BsonDocument("$project", new BsonDocument
-                {
-                    { "Section", "$section.sectionName" },
-                    { "TotalCourses", "$CourseCount" },
-                    { "_id", 0 }
-                })
-            };
-
-            await RunAggregation("courses", pipeline);
+            var docs = await _reportService.GetSectionsAsync();
+            BindAggregationResult(docs);
         }
 
         // ------------------- INSERT / UPDATE / DELETE -------------------
@@ -717,7 +576,7 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
 
             new DeleteMaterialForm(_context).ShowDialog();
         }
-   
+
         // ------------------- VIEW USER UPLOADS -------------------
 
         // ------------------- LOGOUT -------------------
@@ -730,20 +589,20 @@ private async void btnViewUserUploads_Click(object sender, EventArgs e)
             login.Show();
         }
         private void btnOpenAddSection_Click(object sender, EventArgs e)
-{
-    // The security check: Only allow Admin role to proceed [cite: 57]
-    if (UserSession.CurrentUserRole != "admin")
-    {
-        MessageBox.Show("Access Denied. Only administrators can add sections.", "Security Restriction");
-        return;
-    }
-    var addSectionForm = new AddSectionForm(_context); 
-    addSectionForm.ShowDialog();
-    
-    // Optional: Refresh the Sections view after adding a new section
-    btnSections_Click(this, EventArgs.Empty);
+        {
+            // The security check: Only allow Admin role to proceed [cite: 57]
+            if (UserSession.CurrentUserRole != "admin")
+            {
+                MessageBox.Show("Access Denied. Only administrators can add sections.", "Security Restriction");
+                return;
+            }
+            var addSectionForm = new AddSectionForm(_context);
+            addSectionForm.ShowDialog();
 
-    
-}
+            // Optional: Refresh the Sections view after adding a new section
+            btnSections_Click(this, EventArgs.Empty);
+
+
+        }
     }
 }
