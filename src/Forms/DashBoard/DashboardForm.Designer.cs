@@ -18,6 +18,7 @@ namespace CourseSharesApp.Forms
         private System.Windows.Forms.Button btnSearch;
         private System.Windows.Forms.Button btnViewUserUploads;
         private System.Windows.Forms.ComboBox cmbUserList;
+        private System.Windows.Forms.Button btnOpenAddSection;
 
 
         protected override void Dispose(bool disposing)
@@ -161,11 +162,35 @@ namespace CourseSharesApp.Forms
     this.btnLogout.Text = "🚪 Logout";
     this.btnLogout.Click += new System.EventHandler(this.btnLogout_Click);
 
+
+
+
+   // --- The block you added in InitializeComponent() ---
+
+this.btnOpenAddSection = new System.Windows.Forms.Button();
+// 
+// btnOpenAddSection
+// 
+// Use the same styling as the other CRUD buttons for consistency
+this.btnOpenAddSection.BackColor = hoverColor; 
+this.btnOpenAddSection.ForeColor = System.Drawing.Color.Black;
+this.btnOpenAddSection.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+this.btnOpenAddSection.FlatAppearance.BorderSize = 0;
+this.btnOpenAddSection.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold); 
+this.btnOpenAddSection.Dock = System.Windows.Forms.DockStyle.Bottom; // <<< CRITICAL FIX 1: Set the Dock style
+this.btnOpenAddSection.Height = 40; // Match other CRUD buttons
+this.btnOpenAddSection.Text = "➕ Add Section"; // Set text
+this.btnOpenAddSection.Name = "btnOpenAddSection";
+this.btnOpenAddSection.UseVisualStyleBackColor = false;
+this.btnOpenAddSection.Click += new System.EventHandler(this.btnOpenAddSection_Click);
+
+// Note: You can remove the unused Location, Size, and TabIndex lines.
     // Add everything to sidebar
     this.panelMenu.Controls.Add(this.btnLogout);
     this.panelMenu.Controls.Add(this.btnOpenDelete);
     this.panelMenu.Controls.Add(this.btnOpenUpdate);
     this.panelMenu.Controls.Add(this.btnOpenInsert);
+    this.panelMenu.Controls.Add(this.btnOpenAddSection);
     this.panelMenu.Controls.Add(this.btnSections);
     this.panelMenu.Controls.Add(this.btnContributors);
     this.panelMenu.Controls.Add(this.btnPending);
