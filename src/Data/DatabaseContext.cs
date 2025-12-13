@@ -14,6 +14,9 @@ namespace CourseSharesApp.Data
             _database = client.GetDatabase("CourseShares");
         }
 
+        // Expose database for raw queries when needed
+        public IMongoDatabase Database => _database;
+
         public IMongoCollection<User> Users => _database.GetCollection<User>("users");
         public IMongoCollection<Material> Materials => _database.GetCollection<Material>("materials");
         public IMongoCollection<Course> Courses => _database.GetCollection<Course>("courses");
@@ -25,8 +28,14 @@ namespace CourseSharesApp.Data
        
         var collection = _database.GetCollection<Section>("sections");
 
-        
+
         await collection.InsertOneAsync(newSection);
+    }
+
+    public async Task AddCourseAsync(Course newCourse)
+    {
+        var collection = _database.GetCollection<Course>("courses");
+        await collection.InsertOneAsync(newCourse);
     }
     }
 }
