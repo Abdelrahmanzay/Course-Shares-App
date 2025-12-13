@@ -130,29 +130,25 @@ namespace CourseSharesApp.Services
 
         public Task<List<BsonDocument>> GetSectionsAsync()
         {
+            // Build pipeline starting from sections so we include sections with zero courses
             var pipeline = new BsonDocument[]
             {
-                new BsonDocument("$group", new BsonDocument
-                {
-                    { "_id", "$sectionId" },
-                    { "CourseCount", new BsonDocument("$sum", 1) }
-                }),
                 new BsonDocument("$lookup", new BsonDocument
                 {
-                    { "from", "sections" },
+                    { "from", "courses" },
                     { "localField", "_id" },
-                    { "foreignField", "_id" },
-                    { "as", "section" }
+                    { "foreignField", "section_id" },
+                    { "as", "courses" }
                 }),
-                new BsonDocument("$unwind", "$section"),
                 new BsonDocument("$project", new BsonDocument
                 {
-                    { "Section", "$section.sectionName" },
-                    { "TotalCourses", "$CourseCount" },
+                    { "Section", new BsonDocument("$ifNull", new BsonArray { "$sectionName", "$section_name", "$SectionName", "(Unnamed)" }) },
+                    { "TotalCourses", new BsonDocument("$size", "$courses") },
                     { "_id", 0 }
                 })
             };
-            return AggregateAsync("courses", pipeline);
+
+            return AggregateAsync("sections", pipeline);
         }
 
         public Task<List<BsonDocument>> SearchApprovedMaterialsAsync(BsonRegularExpression regex)

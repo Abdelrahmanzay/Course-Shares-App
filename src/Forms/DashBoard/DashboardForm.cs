@@ -36,12 +36,14 @@ namespace CourseSharesApp.Forms
 
                 // NEW: Hide Add Section button for students
                 try { btnOpenAddSection.Visible = false; } catch { /* Ignore if button wasn't defined */ }
+                try { btnOpenAddCourse.Visible = false; } catch { /* Ignore if button wasn't defined */ }
             }
 
             // NEW: Check if the user is NOT an admin, and hide the button if they aren't.
             if (UserSession.CurrentUserRole.ToLower() != "admin")
             {
                 try { btnOpenAddSection.Visible = false; } catch { /* Ignore if button wasn't defined */ }
+                try { btnOpenAddCourse.Visible = false; } catch { /* Ignore if button wasn't defined */ }
             }
 
             // Hide buttons for students
@@ -624,6 +626,26 @@ namespace CourseSharesApp.Forms
                 if (result == DialogResult.OK)
                 {
                     btnSections_Click(this, EventArgs.Empty);
+                }
+            }
+        }
+
+        private void btnOpenAddCourse_Click(object sender, EventArgs e)
+        {
+            // Only admins may add courses
+            if (UserSession.CurrentUserRole != "admin")
+            {
+                MessageBox.Show("Access Denied. Only administrators can add courses.", "Security Restriction");
+                return;
+            }
+
+            using (var addCourseForm = new CourseSharesApp.Forms.Courses.AddCourseForm(_context))
+            {
+                var result = addCourseForm.ShowDialog();
+                if (result == DialogResult.OK)
+                {
+                    // refresh sections view so newly added course can be seen in related UI
+                    try { btnSections_Click(this, EventArgs.Empty); } catch { }
                 }
             }
         }

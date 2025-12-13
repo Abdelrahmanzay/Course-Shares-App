@@ -19,6 +19,7 @@ namespace CourseSharesApp.Forms
         private System.Windows.Forms.Button btnViewUserUploads;
         private System.Windows.Forms.ComboBox cmbUserList;
         private System.Windows.Forms.Button btnOpenAddSection;
+        private System.Windows.Forms.Button btnOpenAddCourse;
 
 
         protected override void Dispose(bool disposing)
@@ -49,6 +50,7 @@ namespace CourseSharesApp.Forms
     this.btnSearch = new System.Windows.Forms.Button();
     this.btnViewUserUploads = new System.Windows.Forms.Button();
     this.cmbUserList = new System.Windows.Forms.ComboBox();
+    this.btnOpenAddCourse = new System.Windows.Forms.Button();
 
     ((System.ComponentModel.ISupportInitialize)(this.dgvResults)).BeginInit();
     this.panelMenu.SuspendLayout();
@@ -146,6 +148,19 @@ namespace CourseSharesApp.Forms
     this.btnOpenUpdate.Click += new System.EventHandler(this.btnOpenUpdate_Click);
     this.btnOpenDelete.Click += new System.EventHandler(this.btnOpenDelete_Click);
 
+    // Add Course button (admin only)
+    this.btnOpenAddCourse.BackColor = hoverColor; 
+    this.btnOpenAddCourse.ForeColor = System.Drawing.Color.Black;
+    this.btnOpenAddCourse.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+    this.btnOpenAddCourse.FlatAppearance.BorderSize = 0;
+    this.btnOpenAddCourse.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold); 
+    this.btnOpenAddCourse.Dock = System.Windows.Forms.DockStyle.Bottom;
+    this.btnOpenAddCourse.Height = 40; 
+    this.btnOpenAddCourse.Text = "➕ Add Course"; 
+    this.btnOpenAddCourse.Name = "btnOpenAddCourse";
+    this.btnOpenAddCourse.UseVisualStyleBackColor = false;
+    this.btnOpenAddCourse.Click += new System.EventHandler(this.btnOpenAddCourse_Click);
+
 
     
 
@@ -191,6 +206,7 @@ this.btnOpenAddSection.Click += new System.EventHandler(this.btnOpenAddSection_C
     this.panelMenu.Controls.Add(this.btnOpenUpdate);
     this.panelMenu.Controls.Add(this.btnOpenInsert);
     this.panelMenu.Controls.Add(this.btnOpenAddSection);
+    this.panelMenu.Controls.Add(this.btnOpenAddCourse);
     this.panelMenu.Controls.Add(this.btnSections);
     this.panelMenu.Controls.Add(this.btnContributors);
     this.panelMenu.Controls.Add(this.btnPending);
