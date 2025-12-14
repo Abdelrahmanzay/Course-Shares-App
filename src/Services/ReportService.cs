@@ -137,12 +137,12 @@ namespace CourseSharesApp.Services
                 {
                     { "from", "courses" },
                     { "localField", "_id" },
-                    { "foreignField", "section_id" },
+                    { "foreignField", "sectionId" },
                     { "as", "courses" }
                 }),
                 new BsonDocument("$project", new BsonDocument
                 {
-                    { "Section", new BsonDocument("$ifNull", new BsonArray { "$sectionName", "$section_name", "$SectionName", "(Unnamed)" }) },
+                    { "Section", new BsonDocument("$ifNull", new BsonArray { "$sectionName", "(Unnamed)" }) },
                     { "TotalCourses", new BsonDocument("$size", "$courses") },
                     { "_id", 0 }
                 })

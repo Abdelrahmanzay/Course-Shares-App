@@ -14,6 +14,7 @@ namespace CourseSharesApp.Models
         [BsonElement("code")] public string Code { get; set; }
         [BsonElement("description")] public string Description { get; set; }
 
-        [BsonElement("section_id")] public ObjectId SectionId { get; set; }
+
+        [BsonElement("sectionId")] public ObjectId SectionId { get; set; }
     }
 }

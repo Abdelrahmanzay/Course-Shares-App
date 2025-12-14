@@ -13,6 +13,9 @@ namespace CourseSharesApp.Forms.Materials
         private System.Windows.Forms.Label lblCourse;
         private System.Windows.Forms.ComboBox cmbCourse;
         private System.Windows.Forms.Button btnSave;
+        
+        // Added the Browse button declaration
+        private System.Windows.Forms.Button btnBrowse; 
 
         protected override void Dispose(bool disposing)
         {
@@ -35,6 +38,7 @@ namespace CourseSharesApp.Forms.Materials
             this.lblCourse = new System.Windows.Forms.Label();
             this.cmbCourse = new System.Windows.Forms.ComboBox();
             this.btnSave = new System.Windows.Forms.Button();
+            this.btnBrowse = new System.Windows.Forms.Button(); // Initialize Button
             this.SuspendLayout();
 
             // lblTitle
@@ -91,12 +95,24 @@ namespace CourseSharesApp.Forms.Materials
             this.txtLink.Size = new System.Drawing.Size(250, 20);
             this.txtLink.TabIndex = 6;
 
+            // 
+            // btnBrowse (New Button Configuration)
+            // 
+            this.btnBrowse.Location = new System.Drawing.Point(360, 75);
+            this.btnBrowse.Name = "btnBrowse";
+            this.btnBrowse.Size = new System.Drawing.Size(75, 23);
+            this.btnBrowse.TabIndex = 7;
+            this.btnBrowse.Text = "Browse...";
+            this.btnBrowse.UseVisualStyleBackColor = true;
+            // IMPORTANT: This connects the click to the code-behind logic
+            this.btnBrowse.Click += new System.EventHandler(this.btnBrowse_Click);
+
             // lblCourse
             this.lblCourse.AutoSize = true;
             this.lblCourse.Location = new System.Drawing.Point(20, 110);
             this.lblCourse.Name = "lblCourse";
             this.lblCourse.Size = new System.Drawing.Size(43, 13);
-            this.lblCourse.TabIndex = 7;
+            this.lblCourse.TabIndex = 8;
             this.lblCourse.Text = "Course:";
 
             // cmbCourse
@@ -104,18 +120,19 @@ namespace CourseSharesApp.Forms.Materials
             this.cmbCourse.Location = new System.Drawing.Point(100, 107);
             this.cmbCourse.Name = "cmbCourse";
             this.cmbCourse.Size = new System.Drawing.Size(250, 21);
-            this.cmbCourse.TabIndex = 8;
+            this.cmbCourse.TabIndex = 9;
 
             // btnSave
             this.btnSave.Location = new System.Drawing.Point(150, 150);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(100, 30);
-            this.btnSave.TabIndex = 9;
+            this.btnSave.TabIndex = 10;
             this.btnSave.Text = "Save";
             this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
 
             // InsertMaterialForm
-            this.ClientSize = new System.Drawing.Size(400, 210);
+            this.ClientSize = new System.Drawing.Size(450, 210); // Slightly wider to fit Browse button
+            this.Controls.Add(this.btnBrowse); // Add Browse button to controls
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.cmbCourse);
             this.Controls.Add(this.lblCourse);

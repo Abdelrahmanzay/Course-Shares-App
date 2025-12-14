@@ -4,8 +4,10 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using System.IO; // Added for File handling
 using MongoDB.Bson;
 using MongoDB.Driver;
+using MongoDB.Driver.GridFS; // Added for GridFS
 using CourseSharesApp.Data;
 using CourseSharesApp.Forms.Materials;
 using CourseSharesApp.Forms.Auth;
@@ -27,34 +29,22 @@ namespace CourseSharesApp.Forms
             _context = context;
             _reportService = new ReportService(_context);
 
-
             if (UserSession.CurrentUserRole.ToLower() == "student")
             {
                 btnOpenUpdate.Visible = false;
                 btnOpenDelete.Visible = false;
                 btnPending.Visible = false;
 
-                // NEW: Hide Add Section button for students
-                try { btnOpenAddSection.Visible = false; } catch { /* Ignore if button wasn't defined */ }
-                try { btnOpenAddCourse.Visible = false; } catch { /* Ignore if button wasn't defined */ }
+                try { btnOpenAddSection.Visible = false; } catch { }
+                try { btnOpenAddCourse.Visible = false; } catch { }
             }
 
-            // NEW: Check if the user is NOT an admin, and hide the button if they aren't.
             if (UserSession.CurrentUserRole.ToLower() != "admin")
             {
-                try { btnOpenAddSection.Visible = false; } catch { /* Ignore if button wasn't defined */ }
-                try { btnOpenAddCourse.Visible = false; } catch { /* Ignore if button wasn't defined */ }
+                try { btnOpenAddSection.Visible = false; } catch { }
+                try { btnOpenAddCourse.Visible = false; } catch { }
             }
 
-            // Hide buttons for students
-            if (UserSession.CurrentUserRole.ToLower() == "student")
-            {
-                btnOpenUpdate.Visible = false;
-                btnOpenDelete.Visible = false;
-                btnPending.Visible = false;
-            }
-
-            // Prepare user dropdown (hidden by default) and wire handler
             try
             {
                 cmbUserList.Visible = false;
@@ -63,19 +53,12 @@ namespace CourseSharesApp.Forms
                 cmbUserList.SelectedIndexChanged -= cmbUserList_SelectedIndexChanged;
                 cmbUserList.SelectedIndexChanged += cmbUserList_SelectedIndexChanged;
 
-                // position the combobox under the search textbox if available
                 cmbUserList.Location = new Point(txtSearch.Location.X, txtSearch.Location.Y + txtSearch.Height + 6);
                 cmbUserList.Width = Math.Max(220, txtSearch.Width + 40);
             }
-            catch
-            {
-                // ignore designer differences
-            }
+            catch { }
 
-            // Load approved materials on start
             LoadApprovedMaterials();
-
-            // Add handler for hyperlink clicks
             dgvResults.CellContentClick += DgvResults_CellContentClick;
         }
 
@@ -84,8 +67,17 @@ namespace CourseSharesApp.Forms
         {
             try
             {
-                var docs = await _reportService.GetApprovedMaterialsAsync();
-                BindAggregationResult(docs);
+                // Ensure we only load approved materials
+                var projected = await _context.Materials
+                    .Find(m => m.Status == "Approved")
+                    .Project(Builders<CourseSharesApp.Models.Material>.Projection
+                        .Include(x => x.Title)
+                        .Include(x => x.ViewsCount)
+                        .Include(x => x.UploadDate)
+                        .Include(x => x.Status)
+                        .Include(x => x.FileLink))
+                    .ToListAsync();
+                BindAggregationResult(projected);
             }
             catch (System.Exception ex)
             {
@@ -96,7 +88,6 @@ namespace CourseSharesApp.Forms
         // ------------------- AGGREGATION HELPER -------------------
         private void BindAggregationResult(System.Collections.Generic.List<BsonDocument> result)
         {
-            // Ensure user-list combobox is hidden for general views
             try { cmbUserList.Visible = false; } catch { }
 
             var displayList = result.Select(doc => doc.ToDictionary()).ToList();
@@ -123,7 +114,7 @@ namespace CourseSharesApp.Forms
                         var linkColumn = new DataGridViewLinkColumn
                         {
                             Name = "FileLink",
-                            HeaderText = "File",
+                            HeaderText = "File/Action",
                             DataPropertyName = "FileLink",
                             TrackVisitedState = true,
                             LinkColor = System.Drawing.Color.Blue,
@@ -145,15 +136,15 @@ namespace CourseSharesApp.Forms
             }
         }
 
-        // ------------------- HANDLE HYPERLINK CLICK -------------------
+        // ------------------- HANDLE HYPERLINK CLICK (DOWNLOAD OR OPEN) -------------------
         private async void DgvResults_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0 && dgvResults.Columns[e.ColumnIndex] is DataGridViewLinkColumn)
             {
-                var link = dgvResults.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
-                if (string.IsNullOrEmpty(link)) return;
+                var linkVal = dgvResults.Rows[e.RowIndex].Cells[e.ColumnIndex].Value?.ToString();
+                if (string.IsNullOrEmpty(linkVal)) return;
 
-                // Attempt to increment viewsCount for the material if we have its _id in the row
+                // --- 1. Increment Views Logic (Preserved) ---
                 try
                 {
                     string idStr = null;
@@ -165,7 +156,6 @@ namespace CourseSharesApp.Forms
                     if (!string.IsNullOrEmpty(idStr))
                     {
                         UpdateResult upd = null;
-
                         if (ObjectId.TryParse(idStr, out var matOid))
                         {
                             var filter = Builders<BsonDocument>.Filter.Eq("_id", matOid);
@@ -174,22 +164,19 @@ namespace CourseSharesApp.Forms
                         }
                         else
                         {
-                            // fallback: try matching on string _id or fileLink
                             var filter = Builders<BsonDocument>.Filter.Eq("_id", idStr);
                             var update = Builders<BsonDocument>.Update.Inc("viewsCount", 1);
                             upd = await materialsColl.UpdateOneAsync(filter, update);
 
                             if (upd?.ModifiedCount == 0)
                             {
-                                // try matching by fileLink
-                                var linkFilter = Builders<BsonDocument>.Filter.Eq("fileLink", link);
+                                var linkFilter = Builders<BsonDocument>.Filter.Eq("fileLink", linkVal);
                                 upd = await materialsColl.UpdateOneAsync(linkFilter, Builders<BsonDocument>.Update.Inc("viewsCount", 1));
                             }
                         }
 
                         if (upd != null && upd.ModifiedCount > 0)
                         {
-                            // update grid cell if ViewsCount or Views present
                             try
                             {
                                 if (dgvResults.Columns.Contains("ViewsCount"))
@@ -205,35 +192,72 @@ namespace CourseSharesApp.Forms
                             }
                             catch { }
                         }
-                        else
-                        {
-                            // Non blocking diagnostic - developer can remove later
-                            Debug.WriteLine("viewsCount not incremented (no matching document).");
-                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    // swallow but log to help debugging
                     Debug.WriteLine($"viewsCount update failed: {ex.Message}");
                 }
 
-                try
+                // --- 2. Handle File Download vs Web Link ---
+                // If the linkVal is a MongoDB ObjectId, it is a file in GridFS.
+                if (ObjectId.TryParse(linkVal, out ObjectId gridFSId))
                 {
-                    Process.Start(new ProcessStartInfo
+                    using (SaveFileDialog sfd = new SaveFileDialog())
                     {
-                        FileName = link,
-                        UseShellExecute = true
-                    });
+                        string title = "download";
+                        if (dgvResults.Columns.Contains("Title"))
+                            title = dgvResults.Rows[e.RowIndex].Cells["Title"].Value?.ToString();
+
+                        // Sanitize filename
+                        foreach (char c in Path.GetInvalidFileNameChars())
+                            title = title.Replace(c, '_');
+
+                        sfd.FileName = title;
+                        // Default filter; users can choose extension if they know it
+                        sfd.Filter = "All Files|*.*|PDF Files|*.pdf|Images|*.jpg;*.png";
+
+                        if (sfd.ShowDialog() == DialogResult.OK)
+                        {
+                            try
+                            {
+                                using (var stream = File.Create(sfd.FileName))
+                                {
+                                    // Download from GridFS
+                                    await _context.Bucket.DownloadToStreamAsync(gridFSId, stream);
+                                }
+
+                                if (MessageBox.Show("Download complete. Open file?", "Success", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                                {
+                                    Process.Start(new ProcessStartInfo { FileName = sfd.FileName, UseShellExecute = true });
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                MessageBox.Show($"Download failed: {ex.Message}");
+                            }
+                        }
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show($"Cannot open file: {ex.Message}");
+                    // It is a standard web URL
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = linkVal,
+                            UseShellExecute = true
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Cannot open link: {ex.Message}");
+                    }
                 }
             }
         }
 
-        // ------------------- BUTTON FUNCTIONALITIES -------------------
         private void btnHome_Click(object sender, EventArgs e) => LoadApprovedMaterials();
 
         private async void btnSearch_Click(object sender, EventArgs e)
@@ -246,7 +270,6 @@ namespace CourseSharesApp.Forms
                 return;
             }
 
-            // Save search to history in user's searchHistory array
             try
             {
                 var userId = UserSession.CurrentUserId;
@@ -260,17 +283,13 @@ namespace CourseSharesApp.Forms
 
                 var update = Builders<User>.Update.Push("searchHistory", searchHistoryDoc);
                 _context.Users.UpdateOne(filter, update);
-                Debug.WriteLine($"Search saved to user history: {searchTerm} at {DateTime.Now}");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to save search history: {ex.Message}");
-                MessageBox.Show($"Error saving search history: {ex.Message}");
             }
 
-            // CONTAINS search (matches anywhere in title)
-            var regex = new BsonRegularExpression(searchTerm, "i"); // "i" = ignore case
-
+            var regex = new BsonRegularExpression(searchTerm, "i");
             var docs = await _reportService.SearchApprovedMaterialsAsync(regex);
             BindAggregationResult(docs);
         }
@@ -279,7 +298,6 @@ namespace CourseSharesApp.Forms
         {
             try
             {
-                // Collect user identifiers from materials robustly
                 List<string> userIdStrings = new List<string>();
 
                 try
@@ -298,10 +316,7 @@ namespace CourseSharesApp.Forms
                         }
                     }
                 }
-                catch
-                {
-                    // ignore - fallback to BSON distinct
-                }
+                catch { }
 
                 if (userIdStrings.Count == 0)
                 {
@@ -324,7 +339,6 @@ namespace CourseSharesApp.Forms
                     return;
                 }
 
-                // Resolve names from users collection where possible
                 var usersColl = _context.Materials.Database.GetCollection<BsonDocument>("users");
                 var objectIds = userIdStrings.Where(id => ObjectId.TryParse(id, out _)).Select(id => ObjectId.Parse(id)).ToList();
                 var stringIds = userIdStrings.Except(objectIds.Select(o => o.ToString())).ToList();
@@ -354,7 +368,6 @@ namespace CourseSharesApp.Forms
                 cmbUserList.DisplayMember = "Name";
                 cmbUserList.ValueMember = "Id";
 
-                // Position under the search box and show dropdown
                 try
                 {
                     cmbUserList.Location = new Point(txtSearch.Location.X, txtSearch.Location.Y + txtSearch.Height + 6);
@@ -367,7 +380,6 @@ namespace CourseSharesApp.Forms
                 cmbUserList.Visible = true;
                 cmbUserList.DroppedDown = true;
 
-                // Ensure the data grid is moved down so the combobox dropdown is not overlapped
                 try
                 {
                     int desiredTop = cmbUserList.Location.Y + cmbUserList.Height + 6;
@@ -376,7 +388,6 @@ namespace CourseSharesApp.Forms
                     {
                         int delta = desiredTop - oldTop;
                         dgvResults.Top = desiredTop;
-                        // reduce height so bottom stays roughly same, but keep a minimum height
                         dgvResults.Height = Math.Max(120, dgvResults.Height - delta);
                     }
                 }
@@ -388,9 +399,6 @@ namespace CourseSharesApp.Forms
             }
         }
 
-        // -----------------------------
-        // NEW: Load materials of selected user
-        // -----------------------------
         private async void cmbUserList_SelectedIndexChanged(object sender, EventArgs e)
         {
             try
@@ -399,22 +407,19 @@ namespace CourseSharesApp.Forms
                 if (!(cmbUserList.SelectedItem is UserItem selected)) return;
 
                 var materialsColl = _context.Materials.Database.GetCollection<BsonDocument>("materials");
-
                 var filters = new List<FilterDefinition<BsonDocument>>();
 
-                // uploadedBy stored as ObjectId
                 if (ObjectId.TryParse(selected.Id, out var parsedOid))
                 {
                     filters.Add(Builders<BsonDocument>.Filter.Eq("uploadedBy", parsedOid));
                 }
 
-                // possible stored user id string fields
                 filters.Add(Builders<BsonDocument>.Filter.Eq("userId", selected.Id));
                 filters.Add(Builders<BsonDocument>.Filter.Eq("UserId", selected.Id));
 
                 var combined = Builders<BsonDocument>.Filter.Or(filters);
-
-                var docs = await materialsColl.Find(combined).ToListAsync();
+                var approvedOnly = Builders<BsonDocument>.Filter.Eq("status", "Approved");
+                var docs = await materialsColl.Find(Builders<BsonDocument>.Filter.And(combined, approvedOnly)).ToListAsync();
 
                 if (docs == null || docs.Count == 0)
                 {
@@ -423,14 +428,12 @@ namespace CourseSharesApp.Forms
                     return;
                 }
 
-                // Build a minimal DataTable with only Title, UploadedBy (name), FileLink and hidden _id
                 var dt = new System.Data.DataTable();
                 dt.Columns.Add("Title");
                 dt.Columns.Add("UploadedBy");
                 dt.Columns.Add("FileLink");
-                dt.Columns.Add("_id"); // hidden id used to increment views
+                dt.Columns.Add("_id");
 
-                // Fetch uploader name from users collection if not embedded in material doc
                 var usersColl = _context.Materials.Database.GetCollection<BsonDocument>("users");
 
                 foreach (var d in docs)
@@ -459,16 +462,15 @@ namespace CourseSharesApp.Forms
                     dt.Rows.Add(dr);
                 }
                 dgvResults.DataSource = dt;
-                // Replace FileLink with a link column
+
                 if (dt.Columns.Contains("FileLink"))
                 {
-                    // remove existing display column if present
                     if (dgvResults.Columns.Contains("FileLink")) dgvResults.Columns.Remove("FileLink");
 
                     var linkColumn = new DataGridViewLinkColumn
                     {
                         Name = "FileLink",
-                        HeaderText = "File",
+                        HeaderText = "File/Action",
                         DataPropertyName = "FileLink",
                         TrackVisitedState = true,
                         LinkColor = System.Drawing.Color.Blue,
@@ -476,7 +478,6 @@ namespace CourseSharesApp.Forms
                         VisitedLinkColor = System.Drawing.Color.Purple
                     };
                     dgvResults.Columns.Add(linkColumn);
-                    // hide the _id column if present
                     if (dgvResults.Columns.Contains("_id")) dgvResults.Columns["_id"].Visible = false;
                 }
             }
@@ -486,46 +487,12 @@ namespace CourseSharesApp.Forms
             }
         }
 
-        // Helper: convert list of BsonDocument to DataTable
-        private System.Data.DataTable BsonDocumentsToDataTable(System.Collections.Generic.List<BsonDocument> docs)
-        {
-            var dt = new System.Data.DataTable();
-
-            if (docs == null || docs.Count == 0) return dt;
-
-            var allKeys = new HashSet<string>();
-            foreach (var d in docs) foreach (var k in d.Names) allKeys.Add(k);
-
-            foreach (var key in allKeys) dt.Columns.Add(key);
-
-            foreach (var d in docs)
-            {
-                var row = dt.NewRow();
-                foreach (var key in allKeys)
-                {
-                    if (d.Contains(key))
-                    {
-                        var val = d[key];
-                        if (val.IsObjectId) row[key] = val.AsObjectId.ToString();
-                        else if (val.IsBsonDateTime) row[key] = val.ToUniversalTime().ToString("u");
-                        else row[key] = val.ToString();
-                    }
-                    else row[key] = "";
-                }
-                dt.Rows.Add(row);
-            }
-
-            return dt;
-        }
-
-        // Simple DTO for combobox binding
         private class UserItem
         {
             public string Id { get; set; } = string.Empty;
             public string Name { get; set; } = string.Empty;
             public override string ToString() => Name;
         }
-
 
         private async void btnTrending_Click(object sender, EventArgs e)
         {
@@ -551,7 +518,6 @@ namespace CourseSharesApp.Forms
             BindAggregationResult(docs);
         }
 
-        // ------------------- INSERT / UPDATE / DELETE -------------------
         private void btnOpenInsert_Click(object sender, EventArgs e)
         {
             using (var form = new InsertMaterialForm(_context))
@@ -600,9 +566,6 @@ namespace CourseSharesApp.Forms
             }
         }
 
-        // ------------------- VIEW USER UPLOADS -------------------
-
-        // ------------------- LOGOUT -------------------
         private void btnLogout_Click(object sender, EventArgs e)
         {
             UserSession.Logout();
@@ -611,9 +574,9 @@ namespace CourseSharesApp.Forms
             this.Hide();
             login.Show();
         }
+
         private void btnOpenAddSection_Click(object sender, EventArgs e)
         {
-            // The security check: Only allow Admin role to proceed [cite: 57]
             if (UserSession.CurrentUserRole != "admin")
             {
                 MessageBox.Show("Access Denied. Only administrators can add sections.", "Security Restriction");
@@ -622,7 +585,6 @@ namespace CourseSharesApp.Forms
             using (var addSectionForm = new AddSectionForm(_context))
             {
                 var result = addSectionForm.ShowDialog();
-                // Refresh the Sections view after adding a new section
                 if (result == DialogResult.OK)
                 {
                     btnSections_Click(this, EventArgs.Empty);
@@ -632,7 +594,6 @@ namespace CourseSharesApp.Forms
 
         private void btnOpenAddCourse_Click(object sender, EventArgs e)
         {
-            // Only admins may add courses
             if (UserSession.CurrentUserRole != "admin")
             {
                 MessageBox.Show("Access Denied. Only administrators can add courses.", "Security Restriction");
@@ -644,7 +605,6 @@ namespace CourseSharesApp.Forms
                 var result = addCourseForm.ShowDialog();
                 if (result == DialogResult.OK)
                 {
-                    // refresh sections view so newly added course can be seen in related UI
                     try { btnSections_Click(this, EventArgs.Empty); } catch { }
                 }
             }

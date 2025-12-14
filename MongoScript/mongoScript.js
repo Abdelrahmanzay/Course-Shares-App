@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 // ---------------- CONNECT TO MONGODB ----------------
 // Connection string from your Project Requirements
 const MONGO_URI =
-  "mongodb+srv://Agent:CyO41ftEO2jYc3Jf@agents.jfuv468.mongodb.net/CourseShares";
+  "mongodb+srv://mohamed:1rnndsRDpTNsjY3R@agents.jfuv468.mongodb.net/CourseShares";
 
 async function start() {
   try {
@@ -26,7 +26,6 @@ async function start() {
 // ------------------- SCHEMAS & VALIDATION -------------------------
 // (Requirement 2.5: Schema Validation)
 // Aligned with Phase 1 "Entities and Relationships" (Page 4)
-
 // 1. Address Schema (Embedded in User)
 const addressSchema = new mongoose.Schema({
   city: { type: String, required: true },
