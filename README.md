@@ -1,17 +1,48 @@
+# Course Shares App
+
+WinForms app for sharing course materials, built on .NET 6 (Windows) and MongoDB Atlas.
+
+## Features
+
+- Upload materials as files or web links (PDF, Word, PowerPoint, TXT).
+- Store file paths or URLs in `materials.fileLink`
+- Dashboard shows only Approved materials; Pending hidden for non-admins.
+- Reports: Trending, Contributors, Pending Queue, Sections activity.
+
+## Prerequisites
+
+- .NET 6 SDK (Windows).
+- MongoDB Atlas cluster with database `CourseShares`.
+- NuGet packages: `MongoDB.Driver` and `MongoDB.Bson`.
+
+## Setup
+
+1. Install dependencies:
+
+```
 Install-Package MongoDB.Driver
-Install-Package MongoDB.Bson# Course Shares App
-
-WinForms application using MongoDB.Driver for an Education - Courses Shares system.
-
-## Connection
-
-Connection string used in `Program.cs`:
-
-```
-mongodb+srv://Agent:CyO41ftEO2jYc3Jf@agents.jfuv468.mongodb.net/
+Install-Package MongoDB.Bson
 ```
 
-Database name used: `CourseShares` (adjust if different).
+2. Configure connection string. Prefer using an environment variable:
+
+```
+setx MONGODB_CONNECTION_STRING "mongodb+srv://<username>:<password>@<cluster>.mongodb.net/"
+```
+
+The app reads the connection string in `DatabaseContext` and connects to database `CourseShares`.
+
+3. Run:
+
+```
+dotnet build
+dotnet run
+```
+
+## Data Model Notes
+
+
+- Approved-only views: The dashboard filters `materials.status == "Approved"`.
 
 ## Aggregation Pipelines (Mongo Shell)
 
@@ -21,7 +52,7 @@ Database name used: `CourseShares` (adjust if different).
 db.materials.aggregate([
   { $sort: { views_count: -1 } },
   { $limit: 5 },
-  { $lookup: { from: "courses", localField: "course_id", foreignField: "_id", as: "course" } },
+  { $lookup: { from: "courses", localField: "courseId", foreignField: "_id", as: "course" } },
   { $addFields: { course_title: { $arrayElemAt: ["$course.title", 0] } } },
   { $project: { _id: 1, title: 1, views_count: 1, course_title: 1 } }
 ])
@@ -31,7 +62,7 @@ db.materials.aggregate([
 
 ```
 db.materials.aggregate([
-  { $group: { _id: "$user_id", uploads: { $sum: 1 } } },
+  { $group: { _id: "$uploadedBy", uploads: { $sum: 1 } } },
   { $lookup: { from: "users", localField: "_id", foreignField: "_id", as: "user" } },
   { $addFields: { user_name: { $arrayElemAt: ["$user.name", 0] } } },
   { $project: { user_id: "$_id", uploads: 1, user_name: 1, _id: 0 } },
@@ -44,28 +75,17 @@ db.materials.aggregate([
 ```
 db.materials.aggregate([
   { $match: { status: "Pending" } },
-  { $project: { _id: 1, title: 1, upload_date: 1, user_id: 1 } }
+  { $project: { _id: 1, title: 1, uploadDate: 1, uploadedBy: 1 } }
 ])
 ```
 
 4. Section Activity
 
 ```
-db.courses.aggregate([
-  { $group: { _id: "$section_id", courses_count: { $sum: 1 } } },
-  { $lookup: { from: "sections", localField: "_id", foreignField: "_id", as: "section" } },
-  { $addFields: { section_name: { $arrayElemAt: ["$section.section_name", 0] } } },
-  { $project: { section_id: "$_id", courses_count: 1, section_name: 1, _id: 0 } },
-  { $sort: { courses_count: -1 } }
+db.sections.aggregate([
+  { $lookup: { from: "courses", localField: "_id", foreignField: "sectionId", as: "courses" } },
+  { $project: { Section: { $ifNull: ["$sectionName", "(Unnamed)"] }, TotalCourses: { $size: "$courses" }, _id: 0 } }
 ])
 ```
 
-## Run
 
-Create a WinForms project targeting .NET Framework 4.8 or .NET 6 (Windows) and include the `src` folder files. Install MongoDB.Driver via NuGet:
-
-```
-Install-Package MongoDB.Driver
-```
-
-Start the app; the Dashboard provides buttons to run the four reports and forms for insert/update/delete operations.
