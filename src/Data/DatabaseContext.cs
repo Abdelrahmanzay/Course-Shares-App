@@ -14,7 +14,6 @@ namespace CourseSharesApp.Data
 
         public DatabaseContext()
         {
-        
             var connectionString = "mongodb+srv://Agent:nDxPoMdFNw4eadaG@agents.jfuv468.mongodb.net/CourseShares";
             var client = new MongoClient(connectionString);
             _database = client.GetDatabase("CourseShares");
